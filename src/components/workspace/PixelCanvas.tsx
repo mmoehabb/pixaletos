@@ -1,5 +1,5 @@
-import React from 'react';
-import { useAppStore } from '../../store';
+import React from "react";
+import { useAppStore } from "../../store";
 
 export const PixelCanvas: React.FC = () => {
   const { dimensions } = useAppStore();
@@ -11,8 +11,9 @@ export const PixelCanvas: React.FC = () => {
         style={{
           width: dimensions.width * 10, // Just a placeholder scale for now
           height: dimensions.height * 10,
-          backgroundSize: '20px 20px',
-          backgroundImage: 'conic-gradient(var(--tw-colors-neutral-300) 90deg, var(--tw-colors-neutral-100) 90deg 180deg, var(--tw-colors-neutral-300) 180deg 270deg, var(--tw-colors-neutral-100) 270deg)'
+          backgroundSize: "20px 20px",
+          backgroundImage:
+            "conic-gradient(var(--tw-colors-neutral-300) 90deg, var(--tw-colors-neutral-100) 90deg 180deg, var(--tw-colors-neutral-300) 180deg 270deg, var(--tw-colors-neutral-100) 270deg)",
         }}
       >
         {/* PixiJS Canvas will be injected here */}

@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import type { ProjectState } from '../types';
+import { create } from "zustand";
+import type { ProjectState } from "../types";
 
 interface AppState extends ProjectState {
   setDimensions: (width: number, height: number) => void;
@@ -8,7 +8,7 @@ interface AppState extends ProjectState {
 
 export const useAppStore = create<AppState>((set) => ({
   metadata: {
-    name: 'Untitled Project',
+    name: "Untitled Project",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -19,8 +19,9 @@ export const useAppStore = create<AppState>((set) => ({
   layers: [],
   activeLayerId: null,
 
-  setDimensions: (width, height) => set((state) => ({
-    dimensions: { width, height },
-    metadata: { ...state.metadata, updatedAt: new Date().toISOString() }
-  })),
+  setDimensions: (width, height) =>
+    set((state) => ({
+      dimensions: { width, height },
+      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+    })),
 }));

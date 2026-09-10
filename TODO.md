@@ -1,6 +1,7 @@
 # TODO
 
 ## Phase 1 — Editor Foundation
+
 - [ ] Set up React + Vite project structure
 - [ ] Configure Tailwind CSS
 - [ ] Initialize PixiJS canvas/rendering engine wrapper
@@ -11,6 +12,7 @@
 - [ ] Build basic Workspace UI (toolbar, canvas, layers/assets, properties, status bar)
 
 ## Phase 2 — File Workflow
+
 - [ ] Implement Project format (JSON state preserving canvas, layers, metadata)
 - [ ] Implement Project save and load functionality
 - [ ] Implement PNG export (nearest-neighbor scaling, transparent background)
@@ -19,6 +21,7 @@
 - [ ] Implement canvas resize and image transform (crop, rotate, flip, scale)
 
 ## Phase 3 — Spritesheet Tooling
+
 - [ ] Create spritesheet input interface (drag/drop multiple assets)
 - [ ] Implement layout configuration (row layout, gap, padding, cell size)
 - [ ] Build live preview of spritesheet output
@@ -26,6 +29,7 @@
 - [ ] Implement spritesheet JSON metadata export
 
 ## Phase 4 — AI Foundation
+
 - [ ] Define AI Provider abstraction interfaces (`generate`, `edit`, `analyze`)
 - [ ] Implement OpenAI / ChatGPT provider mock/stub
 - [ ] Create UI for configuring API credentials and provider selection
@@ -33,6 +37,7 @@
 - [ ] Implement AI request history tracking UI
 
 ## Phase 5 — AI Orchestration
+
 - [ ] Implement editor-context serialization (dimensions, layers, palette, selected region)
 - [ ] Wire AI requests to parse context and decide operation type
 - [ ] Build AI to Asset pipeline (generation -> pixel normalization -> editor asset)
@@ -41,6 +46,7 @@
 - [ ] Integrate accepted AI operations into standard undo/redo history
 
 ## Phase 6 — Polish
+
 - [ ] Perform UI/UX responsive polish and accessibility passes
 - [ ] Implement comprehensive export/import testing
 - [ ] Implement autosave and crash recovery

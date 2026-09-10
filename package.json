@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "oxlint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "echo \"No tests specified\" && exit 0",
     "preview": "vite preview"
   },
   "dependencies": {
