@@ -126,6 +126,7 @@ export const PixelCanvas: React.FC = () => {
     setPan,
     activeLayerId,
     foregroundColor,
+    brushSize,
     executeCommand,
     updateLayerData,
     selection,
@@ -270,6 +271,52 @@ export const PixelCanvas: React.FC = () => {
     let err = dx - dy;
     while (true) {
       drawPixel(data, x0, y0, color, trackDiff);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x0 += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
+  };
+
+  /** Draw a square pixel-art brush centered on a canvas pixel. */
+  const drawBrush = (
+    data: Uint8ClampedArray,
+    x: number,
+    y: number,
+    color: { r: number; g: number; b: number; a: number },
+  ) => {
+    const start = -Math.floor((brushSize - 1) / 2);
+    const end = start + brushSize - 1;
+    for (let offsetY = start; offsetY <= end; offsetY++) {
+      for (let offsetX = start; offsetX <= end; offsetX++) {
+        drawPixel(data, x + offsetX, y + offsetY, color, true);
+      }
+    }
+  };
+
+  /** Interpolate brush stamps so rapid pointer movements never leave gaps. */
+  const drawBrushLine = (
+    data: Uint8ClampedArray,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    color: { r: number; g: number; b: number; a: number },
+  ) => {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+
+    while (true) {
+      drawBrush(data, x0, y0, color);
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
       if (e2 > -dy) {
@@ -554,6 +601,10 @@ export const PixelCanvas: React.FC = () => {
     const layer = layers.find((l) => l.id === activeLayerId);
     if (!layer || !layer.visible) return;
 
+    // A pointer interaction owns exactly one history diff. This also prevents a
+    // cancelled interaction from leaking pixels into the following command.
+    strokeDiff.current.clear();
+
     if (currentTool === "move" && selection) {
       setIsDrawing(true);
       startDrawPos.current = { x, y };
@@ -605,7 +656,7 @@ export const PixelCanvas: React.FC = () => {
         : hexToRgb(foregroundColor);
 
     if (currentTool === "pencil" || currentTool === "eraser") {
-      drawPixel(layer.data, x, y, color, true);
+      drawBrush(layer.data, x, y, color);
       updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
     } else if (currentTool === "fill") {
       floodFill(layer.data, x, y, color, true);
@@ -695,7 +746,7 @@ export const PixelCanvas: React.FC = () => {
         : hexToRgb(foregroundColor);
 
     if (currentTool === "pencil" || currentTool === "eraser") {
-      drawLine(layer.data, prev.x, prev.y, x, y, color, true);
+      drawBrushLine(layer.data, prev.x, prev.y, x, y, color);
       updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
       lastDrawPos.current = { x, y };
     } else if (
@@ -803,6 +854,18 @@ export const PixelCanvas: React.FC = () => {
 
         const layer = layers.find((l) => l.id === activeLayerId);
         if (layer) {
+          // Clicking a selection without dragging must not clear its pixels.
+          if (dx === 0 && dy === 0) {
+            updateLayerData(
+              activeLayerId,
+              new Uint8ClampedArray(originalLayerData.current),
+            );
+            strokeDiff.current.clear();
+            originalLayerData.current = null;
+            movedSelectionData.current = null;
+            return;
+          }
+
           // Apply preview data to layer
           for (let i = 0; i < previewDataRef.current.length; i += 4) {
             if (previewDataRef.current[i + 3] > 0) {
@@ -914,16 +977,20 @@ export const PixelCanvas: React.FC = () => {
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
-        className="shadow-lg absolute"
+        aria-label="Pixel canvas"
+        className="absolute rounded-sm shadow-[0_12px_36px_rgba(0,0,0,0.35)]"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: "top left",
           width: dimensions.width,
           height: dimensions.height,
           imageRendering: "pixelated",
-          backgroundSize: "2px 2px",
+          // This pattern is intentionally rendered behind the transparent Pixi
+          // canvas so empty pixels remain visually distinct from white pixels.
+          backgroundColor: "#cbd3df",
+          backgroundSize: "8px 8px",
           backgroundImage:
-            "conic-gradient(var(--tw-colors-neutral-300) 90deg, var(--tw-colors-neutral-100) 90deg 180deg, var(--tw-colors-neutral-300) 180deg 270deg, var(--tw-colors-neutral-100) 270deg)",
+            "conic-gradient(#eef2f7 25%, #cbd3df 0 50%, #eef2f7 0 75%, #cbd3df 0)",
           cursor:
             currentTool === "pan"
               ? isPanning
