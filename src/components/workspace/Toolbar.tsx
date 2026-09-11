@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Pencil,
   Eraser,
   PaintBucket,
   MousePointer2,
+  Wand2,
+  Brush,
   Move,
   ZoomIn,
   Hand,
@@ -23,12 +25,13 @@ interface ToolButtonProps {
 }
 
 const ToolButton: React.FC<
-  ToolButtonProps & { isActive: boolean; onClick: () => void }
-> = ({ icon, label, isActive, onClick }) => {
+  ToolButtonProps & { isActive: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void }
+> = ({ icon, label, isActive, onClick, onContextMenu }) => {
   return (
     <button
       onClick={onClick}
-      className={`p-2 rounded-md mb-1 transition-colors ${
+      onContextMenu={onContextMenu}
+      className={`p-2 rounded-md mb-1 transition-colors relative ${
         isActive
           ? "bg-indigo-600 text-white"
           : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
@@ -52,6 +55,22 @@ export const Toolbar: React.FC = () => {
     setBrushSize,
   } = useAppStore();
 
+  const [selectMenuOpen, setSelectMenuOpen] = useState(false);
+  const selectMenuRef = useRef<HTMLDivElement>(null);
+  const [lastSelectTool, setLastSelectTool] = useState<Tool>("select");
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectMenuRef.current && !selectMenuRef.current.contains(event.target as Node)) {
+        setSelectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const renderTool = (tool: Tool, icon: React.ReactNode, label: string) => (
     <ToolButton
       tool={tool}
@@ -62,10 +81,78 @@ export const Toolbar: React.FC = () => {
     />
   );
 
+  const renderSelectTool = () => {
+    let icon = <MousePointer2 size={20} />;
+    let label = "Select (M)";
+    let toolToActivate = lastSelectTool;
+
+    if (currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand") {
+      toolToActivate = currentTool;
+    }
+
+    if (toolToActivate === "select_brush") {
+      icon = <Brush size={20} />;
+      label = "Brush Select";
+    } else if (toolToActivate === "select_magic_wand") {
+      icon = <Wand2 size={20} />;
+      label = "Magic Wand Select";
+    }
+
+    return (
+      <div className="relative" ref={selectMenuRef}>
+        <ToolButton
+          tool={toolToActivate}
+          icon={icon}
+          label={label + " (Right click for more)"}
+          isActive={currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand"}
+          onClick={() => setTool(toolToActivate)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setSelectMenuOpen(!selectMenuOpen);
+          }}
+        />
+        {selectMenuOpen && (
+          <div className="absolute left-full top-0 ml-2 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg py-1 w-48 z-50">
+            <button
+              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-700 ${lastSelectTool === "select" ? "text-indigo-400" : "text-neutral-200"}`}
+              onClick={() => {
+                setLastSelectTool("select");
+                setTool("select");
+                setSelectMenuOpen(false);
+              }}
+            >
+              <MousePointer2 size={16} /> Rectangular Select
+            </button>
+            <button
+              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-700 ${lastSelectTool === "select_brush" ? "text-indigo-400" : "text-neutral-200"}`}
+              onClick={() => {
+                setLastSelectTool("select_brush");
+                setTool("select_brush");
+                setSelectMenuOpen(false);
+              }}
+            >
+              <Brush size={16} /> Brush Select
+            </button>
+            <button
+              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-700 ${lastSelectTool === "select_magic_wand" ? "text-indigo-400" : "text-neutral-200"}`}
+              onClick={() => {
+                setLastSelectTool("select_magic_wand");
+                setTool("select_magic_wand");
+                setSelectMenuOpen(false);
+              }}
+            >
+              <Wand2 size={16} /> Magic Wand Select
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
       <div className="flex flex-col mb-4 w-full px-2">
-        {renderTool("select", <MousePointer2 size={20} />, "Select (M)")}
+        {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}
       </div>
 
