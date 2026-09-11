@@ -1011,7 +1011,11 @@ export const PixelCanvas: React.FC = () => {
         }}
       >
         <div ref={canvasRef} className="w-full h-full pointer-events-none">
+          {/* Pixi initializes its renderer and GPU textures at a specific size.
+              Remount on dimension changes so resized pixel buffers never reach
+              a renderer created for the old dimensions. */}
           <Application
+            key={`${dimensions.width}x${dimensions.height}`}
             backgroundAlpha={0}
             width={dimensions.width}
             height={dimensions.height}
