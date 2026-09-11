@@ -3,6 +3,7 @@ import { Toolbar } from "./components/workspace/Toolbar";
 import { PixelCanvas } from "./components/workspace/PixelCanvas";
 import { RightPanel } from "./components/workspace/RightPanel";
 import { KeyboardShortcuts } from "./components/workspace/KeyboardShortcuts";
+import { MenuBar } from "./components/workspace/MenuBar";
 import { useAppStore } from "./store";
 
 function App() {
@@ -31,19 +32,7 @@ function App() {
           </span>
           <span>Pixaletos</span>
         </div>
-        <nav
-          aria-label="Application menu"
-          className="flex gap-1 text-sm text-neutral-400"
-        >
-          {["File", "Edit", "Image", "Layer", "View"].map((item) => (
-            <button
-              key={item}
-              className="rounded px-2.5 py-1 transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
-            >
-              {item}
-            </button>
-          ))}
-        </nav>
+        <MenuBar />
         <div className="ml-auto rounded-full border border-indigo-400/15 bg-indigo-400/8 px-2.5 py-1 text-[11px] font-medium text-indigo-200">
           Pixel editor
         </div>

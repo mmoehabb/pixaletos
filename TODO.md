@@ -13,11 +13,11 @@
 
 ## Phase 2 — File Workflow
 
-- [ ] Implement Project format (JSON state preserving canvas, layers, metadata)
-- [ ] Implement Project save and load functionality
-- [ ] Implement PNG export (nearest-neighbor scaling, transparent background)
+- [x] Implement Project format (JSON state preserving canvas, layers, metadata)
+- [x] Implement Project save and load functionality
+- [x] Implement PNG export (nearest-neighbor scaling, transparent background)
 - [ ] Implement basic image import (parse PNG to canvas)
-- [ ] Build Menu bar (File, Edit, Image, Layer, View, AI)
+- [x] Build Menu bar (File, Edit, Image, Layer, View, AI)
 - [ ] Implement canvas resize and image transform (crop, rotate, flip, scale)
 
 ## Phase 3 — Spritesheet Tooling
