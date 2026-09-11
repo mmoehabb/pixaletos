@@ -29,7 +29,12 @@ export interface AppState extends ProjectState, EditorState, HistoryState {
   undo: () => void;
   redo: () => void;
 
-  loadProjectState: (metadata: any, dimensions: any, layers: Layer[], activeLayerId: string | null) => void;
+  loadProjectState: (
+    metadata: any,
+    dimensions: any,
+    layers: Layer[],
+    activeLayerId: string | null,
+  ) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({

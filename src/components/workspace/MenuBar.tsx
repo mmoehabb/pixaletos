@@ -17,7 +17,13 @@ interface MenuDropdownProps {
   onClose: () => void;
 }
 
-function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDropdownProps) {
+function MenuDropdown({
+  label,
+  items,
+  isOpen,
+  onToggle,
+  onClose,
+}: MenuDropdownProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,7 +56,9 @@ function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDropdownP
         <div className="absolute left-0 top-full mt-1 w-48 rounded-md border border-white/10 bg-[#191c23] py-1 shadow-lg z-50">
           {items.map((item, index) => {
             if (item.divider) {
-              return <div key={`div-${index}`} className="my-1 h-px bg-white/10" />;
+              return (
+                <div key={`div-${index}`} className="my-1 h-px bg-white/10" />
+              );
             }
             return (
               <button
@@ -62,7 +70,9 @@ function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDropdownP
                 className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-neutral-300 hover:bg-indigo-500 hover:text-white"
               >
                 <span>{item.label}</span>
-                {item.shortcut && <span className="text-xs opacity-60">{item.shortcut}</span>}
+                {item.shortcut && (
+                  <span className="text-xs opacity-60">{item.shortcut}</span>
+                )}
               </button>
             );
           })}
@@ -128,8 +138,16 @@ export function MenuBar() {
   ];
 
   const viewItems: MenuItem[] = [
-    { label: "Zoom In", shortcut: "Ctrl++", onClick: () => store.setZoom(Math.min(20, store.zoom + 0.5)) },
-    { label: "Zoom Out", shortcut: "Ctrl+-", onClick: () => store.setZoom(Math.max(0.1, store.zoom - 0.5)) },
+    {
+      label: "Zoom In",
+      shortcut: "Ctrl++",
+      onClick: () => store.setZoom(Math.min(20, store.zoom + 0.5)),
+    },
+    {
+      label: "Zoom Out",
+      shortcut: "Ctrl+-",
+      onClick: () => store.setZoom(Math.max(0.1, store.zoom - 0.5)),
+    },
     { label: "Reset Zoom", onClick: () => store.setZoom(1) },
     { divider: true },
     { label: "Toggle Grid" },

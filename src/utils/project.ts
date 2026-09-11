@@ -45,7 +45,7 @@ export function saveProject(store: AppState) {
     type: "application/json",
   });
 
-  const filename = `${store.metadata.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'project'}.json`;
+  const filename = `${store.metadata.name.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "project"}.json`;
   saveAs(blob, filename);
 }
 
@@ -74,22 +74,29 @@ export function loadProject(store: AppState) {
           data: base64ToUint8ClampedArray(layer.data),
         }));
 
-        store.setDimensions(projectData.dimensions.width, projectData.dimensions.height);
+        store.setDimensions(
+          projectData.dimensions.width,
+          projectData.dimensions.height,
+        );
 
         // Reset layers manually in the store, we need a way to completely overwrite state
         // Let's use the methods available or we'll need to add a reset function to store.
 
         // Let's implement a clean way to load by doing it manually using store methods
         // First, clear all existing layers
-        store.layers.forEach(l => store.removeLayer(l.id));
+        store.layers.forEach((l) => store.removeLayer(l.id));
 
         // Store doesn't have a batch set method for project load, we need to add it or do it carefully
         // For now, let's just add one layer so the app doesn't crash, and we'll implement a proper store update
         // We will modify the store to add a `loadProjectState` method in a moment.
 
         // For now:
-        store.loadProjectState(projectData.metadata, projectData.dimensions, deserializedLayers, projectData.activeLayerId);
-
+        store.loadProjectState(
+          projectData.metadata,
+          projectData.dimensions,
+          deserializedLayers,
+          projectData.activeLayerId,
+        );
       } catch (error) {
         console.error("Failed to load project:", error);
         alert("Failed to load project file.");
@@ -127,7 +134,11 @@ export function exportToPNG(store: AppState, scale: number = 1) {
     // Create ImageData from Uint8ClampedArray
     // Since TS has some quirks with ArrayBuffer vs SharedArrayBuffer in some environments,
     // we cast through any to fix type checking for ImageDataArray.
-    const imageData = new ImageData(new Uint8ClampedArray(layer.data) as any, dimensions.width, dimensions.height);
+    const imageData = new ImageData(
+      new Uint8ClampedArray(layer.data) as any,
+      dimensions.width,
+      dimensions.height,
+    );
 
     // Create a temporary canvas to draw this layer
     const tempCanvas = document.createElement("canvas");
@@ -153,7 +164,13 @@ export function exportToPNG(store: AppState, scale: number = 1) {
 
     if (scaledCtx) {
       scaledCtx.imageSmoothingEnabled = false; // Nearest-neighbor scaling
-      scaledCtx.drawImage(canvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+      scaledCtx.drawImage(
+        canvas,
+        0,
+        0,
+        scaledCanvas.width,
+        scaledCanvas.height,
+      );
       finalCanvas = scaledCanvas;
     }
   }
@@ -161,7 +178,7 @@ export function exportToPNG(store: AppState, scale: number = 1) {
   // Download as PNG
   finalCanvas.toBlob((blob) => {
     if (blob) {
-      const filename = `${store.metadata.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'export'}.png`;
+      const filename = `${store.metadata.name.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "export"}.png`;
       saveAs(blob, filename);
     }
   }, "image/png");
