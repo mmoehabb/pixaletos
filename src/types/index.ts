@@ -23,17 +23,17 @@ export interface ProjectState {
 }
 
 export type Tool =
-  | 'pencil'
-  | 'eraser'
-  | 'fill'
-  | 'line'
-  | 'rectangle'
-  | 'ellipse'
-  | 'eyedropper'
-  | 'select'
-  | 'move'
-  | 'pan'
-  | 'zoom';
+  | "pencil"
+  | "eraser"
+  | "fill"
+  | "line"
+  | "rectangle"
+  | "ellipse"
+  | "eyedropper"
+  | "select"
+  | "move"
+  | "pan"
+  | "zoom";
 
 export interface EditorState {
   currentTool: Tool;

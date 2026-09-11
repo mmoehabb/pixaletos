@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { useAppStore } from '../../store';
-import type { Tool } from '../../types';
+import React, { useEffect } from "react";
+import { useAppStore } from "../../store";
+import type { Tool } from "../../types";
 
 export const KeyboardShortcuts: React.FC = () => {
   const { setTool, undo, redo, setZoom, zoom, setSelection } = useAppStore();
@@ -8,15 +8,18 @@ export const KeyboardShortcuts: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts if user is typing in an input field
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
         return;
       }
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
       if (cmdOrCtrl) {
-        if (e.key.toLowerCase() === 'z') {
+        if (e.key.toLowerCase() === "z") {
           if (e.shiftKey) {
             redo();
           } else {
@@ -26,14 +29,16 @@ export const KeyboardShortcuts: React.FC = () => {
           return;
         }
 
-        if (e.key.toLowerCase() === 'a') {
+        if (e.key.toLowerCase() === "a") {
           if (e.shiftKey) {
             // Deselect all
             setSelection(null);
           } else {
             // Select all
             const { dimensions } = useAppStore.getState();
-            const newSelection = new Uint8Array(dimensions.width * dimensions.height);
+            const newSelection = new Uint8Array(
+              dimensions.width * dimensions.height,
+            );
             newSelection.fill(1);
             setSelection(newSelection);
           }
@@ -41,38 +46,42 @@ export const KeyboardShortcuts: React.FC = () => {
           return;
         }
 
-        if (e.key === '=' || e.key === '+') {
-            setZoom(Math.min(20, zoom + 0.5));
-            e.preventDefault();
-            return;
+        if (e.key === "=" || e.key === "+") {
+          setZoom(Math.min(20, zoom + 0.5));
+          e.preventDefault();
+          return;
         }
 
-        if (e.key === '-') {
-            setZoom(Math.max(0.1, zoom - 0.5));
-            e.preventDefault();
-            return;
+        if (e.key === "-") {
+          setZoom(Math.max(0.1, zoom - 0.5));
+          e.preventDefault();
+          return;
         }
 
         // Basic copy/paste placeholders (full clipboard integration requires more work)
-        if (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'v') {
-            // e.preventDefault();
-            // To be implemented in a future iteration
-            return;
+        if (
+          e.key.toLowerCase() === "c" ||
+          e.key.toLowerCase() === "x" ||
+          e.key.toLowerCase() === "v"
+        ) {
+          // e.preventDefault();
+          // To be implemented in a future iteration
+          return;
         }
       } else {
         // Tool shortcuts
         const toolMap: Record<string, Tool> = {
-          'p': 'pencil',
-          'e': 'eraser',
-          'f': 'fill',
-          'i': 'eyedropper',
-          'm': 'select',
-          'v': 'move',
-          'l': 'line',
-          'r': 'rectangle',
-          'o': 'ellipse',
-          'h': 'pan',
-          'z': 'zoom'
+          p: "pencil",
+          e: "eraser",
+          f: "fill",
+          i: "eyedropper",
+          m: "select",
+          v: "move",
+          l: "line",
+          r: "rectangle",
+          o: "ellipse",
+          h: "pan",
+          z: "zoom",
         };
 
         const key = e.key.toLowerCase();
@@ -81,32 +90,32 @@ export const KeyboardShortcuts: React.FC = () => {
         }
 
         // Spacebar panning (set tool to pan temporarily if held)
-        if (e.code === 'Space') {
-          setTool('pan');
+        if (e.code === "Space") {
+          setTool("pan");
         }
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
       if (cmdOrCtrl) {
-         e.preventDefault(); // Prevent browser zoom
-         if (e.deltaY < 0) {
-            setZoom(Math.min(20, zoom + 0.25));
-         } else {
-            setZoom(Math.max(0.1, zoom - 0.25));
-         }
+        e.preventDefault(); // Prevent browser zoom
+        if (e.deltaY < 0) {
+          setZoom(Math.min(20, zoom + 0.25));
+        } else {
+          setZoom(Math.max(0.1, zoom - 0.25));
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-       window.removeEventListener('keydown', handleKeyDown);
-       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("wheel", handleWheel);
     };
   }, [setTool, undo, redo, setZoom, zoom, setSelection]);
 

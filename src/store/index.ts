@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { ProjectState, EditorState, HistoryState, Tool, Layer, Command } from "../types";
+import type {
+  ProjectState,
+  EditorState,
+  HistoryState,
+  Tool,
+  Layer,
+  Command,
+} from "../types";
 
 export interface AppState extends ProjectState, EditorState, HistoryState {
   setDimensions: (width: number, height: number) => void;
@@ -36,9 +43,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   layers: [],
   activeLayerId: null,
 
-  currentTool: 'pencil',
-  foregroundColor: '#000000',
-  backgroundColor: '#ffffff',
+  currentTool: "pencil",
+  foregroundColor: "#000000",
+  backgroundColor: "#ffffff",
   brushSize: 1,
   zoom: 1,
   pan: { x: 0, y: 0 },
@@ -60,46 +67,58 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPan: (pan) => set({ pan }),
   setSelection: (selection) => set({ selection }),
 
-  addLayer: () => set((state) => {
-    const newLayer: Layer = {
-      id: crypto.randomUUID(),
-      name: `Layer ${state.layers.length + 1}`,
-      visible: true,
-      opacity: 1,
-      data: new Uint8ClampedArray(state.dimensions.width * state.dimensions.height * 4)
-    };
-    return {
-      layers: [newLayer, ...state.layers],
-      activeLayerId: newLayer.id,
+  addLayer: () =>
+    set((state) => {
+      const newLayer: Layer = {
+        id: crypto.randomUUID(),
+        name: `Layer ${state.layers.length + 1}`,
+        visible: true,
+        opacity: 1,
+        data: new Uint8ClampedArray(
+          state.dimensions.width * state.dimensions.height * 4,
+        ),
+      };
+      return {
+        layers: [newLayer, ...state.layers],
+        activeLayerId: newLayer.id,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
+
+  removeLayer: (id) =>
+    set((state) => ({
+      layers: state.layers.filter((l) => l.id !== id),
+      activeLayerId:
+        state.activeLayerId === id
+          ? state.layers.find((l) => l.id !== id)?.id || null
+          : state.activeLayerId,
       metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-    };
-  }),
+    })),
 
-  removeLayer: (id) => set((state) => ({
-    layers: state.layers.filter(l => l.id !== id),
-    activeLayerId: state.activeLayerId === id ? (state.layers.find(l => l.id !== id)?.id || null) : state.activeLayerId,
-    metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-  })),
+  updateLayer: (id, updates) =>
+    set((state) => ({
+      layers: state.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+    })),
 
-  updateLayer: (id, updates) => set((state) => ({
-    layers: state.layers.map(l => l.id === id ? { ...l, ...updates } : l),
-    metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-  })),
-
-  updateLayerData: (id, data) => set((state) => ({
-    layers: state.layers.map(l => l.id === id ? { ...l, data } : l),
-    metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-  })),
+  updateLayerData: (id, data) =>
+    set((state) => ({
+      layers: state.layers.map((l) => (l.id === id ? { ...l, data } : l)),
+      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+    })),
 
   setActiveLayer: (id) => set({ activeLayerId: id }),
 
-  reorderLayers: (layerIds) => set((state) => {
-    const newLayers = layerIds.map(id => state.layers.find(l => l.id === id)).filter((l): l is Layer => !!l);
-    return {
-      layers: newLayers,
-      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-    };
-  }),
+  reorderLayers: (layerIds) =>
+    set((state) => {
+      const newLayers = layerIds
+        .map((id) => state.layers.find((l) => l.id === id))
+        .filter((l): l is Layer => !!l);
+      return {
+        layers: newLayers,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
 
   executeCommand: (command) => {
     command.redo();

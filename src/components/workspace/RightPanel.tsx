@@ -1,6 +1,14 @@
-import React from 'react';
-import { useAppStore } from '../../store';
-import { Layers, Plus, Trash2, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
+import React from "react";
+import { useAppStore } from "../../store";
+import {
+  Layers,
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 
 export const RightPanel: React.FC = () => {
   const {
@@ -10,7 +18,7 @@ export const RightPanel: React.FC = () => {
     removeLayer,
     updateLayer,
     setActiveLayer,
-    reorderLayers
+    reorderLayers,
   } = useAppStore();
 
   const handleMoveUp = (index: number) => {
@@ -19,7 +27,7 @@ export const RightPanel: React.FC = () => {
     const temp = newLayers[index - 1];
     newLayers[index - 1] = newLayers[index];
     newLayers[index] = temp;
-    reorderLayers(newLayers.map(l => l.id));
+    reorderLayers(newLayers.map((l) => l.id));
   };
 
   const handleMoveDown = (index: number) => {
@@ -28,7 +36,7 @@ export const RightPanel: React.FC = () => {
     const temp = newLayers[index + 1];
     newLayers[index + 1] = newLayers[index];
     newLayers[index] = temp;
-    reorderLayers(newLayers.map(l => l.id));
+    reorderLayers(newLayers.map((l) => l.id));
   };
 
   return (
@@ -55,8 +63,8 @@ export const RightPanel: React.FC = () => {
               key={layer.id}
               className={`flex items-center justify-between p-2 rounded cursor-pointer border ${
                 isActive
-                  ? 'bg-neutral-800 border-neutral-700 text-white'
-                  : 'hover:bg-neutral-800/50 border-transparent'
+                  ? "bg-neutral-800 border-neutral-700 text-white"
+                  : "hover:bg-neutral-800/50 border-transparent"
               }`}
               onClick={() => setActiveLayer(layer.id)}
             >
@@ -76,14 +84,20 @@ export const RightPanel: React.FC = () => {
               <div className="flex items-center gap-1">
                 <div className="flex flex-col">
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleMoveUp(index); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveUp(index);
+                    }}
                     disabled={index === 0}
                     className="text-neutral-500 hover:text-neutral-300 disabled:opacity-30 p-0.5"
                   >
                     <ChevronUp size={12} />
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleMoveDown(index); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveDown(index);
+                    }}
                     disabled={index === layers.length - 1}
                     className="text-neutral-500 hover:text-neutral-300 disabled:opacity-30 p-0.5"
                   >
@@ -113,17 +127,25 @@ export const RightPanel: React.FC = () => {
       </div>
 
       <div className="p-4 border-t border-neutral-800">
-        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-2 font-semibold">Properties</div>
+        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-2 font-semibold">
+          Properties
+        </div>
         {activeLayerId && (
           <div className="flex items-center justify-between">
-             <span className="text-sm text-neutral-400">Opacity</span>
-             <input
-                type="range"
-                min="0" max="1" step="0.01"
-                value={layers.find(l => l.id === activeLayerId)?.opacity || 1}
-                onChange={(e) => updateLayer(activeLayerId, { opacity: parseFloat(e.target.value) })}
-                className="w-24 accent-indigo-500"
-             />
+            <span className="text-sm text-neutral-400">Opacity</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={layers.find((l) => l.id === activeLayerId)?.opacity || 1}
+              onChange={(e) =>
+                updateLayer(activeLayerId, {
+                  opacity: parseFloat(e.target.value),
+                })
+              }
+              className="w-24 accent-indigo-500"
+            />
           </div>
         )}
       </div>
