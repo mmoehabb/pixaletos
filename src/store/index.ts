@@ -28,6 +28,8 @@ export interface AppState extends ProjectState, EditorState, HistoryState {
   executeCommand: (command: Command) => void;
   undo: () => void;
   redo: () => void;
+
+  loadProjectState: (metadata: any, dimensions: any, layers: Layer[], activeLayerId: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -149,4 +151,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       future: state.future.slice(1),
     }));
   },
+
+  loadProjectState: (metadata, dimensions, layers, activeLayerId) =>
+    set({
+      metadata,
+      dimensions,
+      layers,
+      activeLayerId,
+      past: [], // Reset history on load
+      future: [],
+    }),
 }));
