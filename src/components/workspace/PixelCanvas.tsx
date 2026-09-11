@@ -86,67 +86,78 @@ const SelectionOverlay = ({
       g.clear();
       if (!selection) return;
 
-      let minX = dimensions.width,
-        minY = dimensions.height,
-        maxX = -1,
-        maxY = -1;
       let hasSel = false;
-      for (let y = 0; y < dimensions.height; y++) {
-        for (let x = 0; x < dimensions.width; x++) {
-          if (selection[y * dimensions.width + x]) {
-            if (x < minX) minX = x;
-            if (y < minY) minY = y;
-            if (x > maxX) maxX = x;
-            if (y > maxY) maxY = y;
-            hasSel = true;
-          }
+      for (let i = 0; i < selection.length; i++) {
+        if (selection[i]) {
+          hasSel = true;
+          break;
         }
       }
 
-      if (hasSel) {
-        g.beginFill(0x000000, 0.3);
-
-        // Top
-        if (minY > 0) {
-          g.drawRect(0, 0, dimensions.width, minY);
-        }
-
-        // Bottom
-        if (maxY < dimensions.height - 1) {
-          g.drawRect(
-            0,
-            maxY + 1,
-            dimensions.width,
-            dimensions.height - (maxY + 1),
-          );
-        }
-
-        // Left (middle section)
-        if (minX > 0) {
-          g.drawRect(0, minY, minX, maxY - minY + 1);
-        }
-
-        // Right (middle section)
-        if (maxX < dimensions.width - 1) {
-          g.drawRect(
-            maxX + 1,
-            minY,
-            dimensions.width - (maxX + 1),
-            maxY - minY + 1,
-          );
-        }
-
-        g.endFill();
-
-        g.lineStyle(1, 0xffffff, 1);
-        g.drawRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
-      } else {
-        // If nothing is selected technically, just dim everything?
-        // Wait, if !selection we returned early, but if selection array is all 0s we get here.
-        // Let's just dim the whole screen in that case.
+      if (!hasSel) {
         g.beginFill(0x000000, 0.3);
         g.drawRect(0, 0, dimensions.width, dimensions.height);
         g.endFill();
+        return;
+      }
+
+      // Draw dimming for unselected pixels using horizontal spans to optimize
+      g.beginFill(0x000000, 0.3);
+      for (let y = 0; y < dimensions.height; y++) {
+        let spanStartX = -1;
+        for (let x = 0; x < dimensions.width; x++) {
+          const isSelected = selection[y * dimensions.width + x];
+          if (!isSelected) {
+            if (spanStartX === -1) {
+              spanStartX = x;
+            }
+          } else {
+            if (spanStartX !== -1) {
+              g.drawRect(spanStartX, y, x - spanStartX, 1);
+              spanStartX = -1;
+            }
+          }
+        }
+        if (spanStartX !== -1) {
+          g.drawRect(spanStartX, y, dimensions.width - spanStartX, 1);
+        }
+      }
+      g.endFill();
+
+      // Draw borders around selected pixels
+      g.lineStyle(1, 0xffffff, 0.8); // width, color, alpha
+
+      const isSel = (x: number, y: number) => {
+        if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height)
+          return false;
+        return selection[y * dimensions.width + x] === 1;
+      };
+
+      for (let y = 0; y < dimensions.height; y++) {
+        for (let x = 0; x < dimensions.width; x++) {
+          if (selection[y * dimensions.width + x]) {
+            // Check top
+            if (!isSel(x, y - 1)) {
+              g.moveTo(x, y);
+              g.lineTo(x + 1, y);
+            }
+            // Check bottom
+            if (!isSel(x, y + 1)) {
+              g.moveTo(x, y + 1);
+              g.lineTo(x + 1, y + 1);
+            }
+            // Check left
+            if (!isSel(x - 1, y)) {
+              g.moveTo(x, y);
+              g.lineTo(x, y + 1);
+            }
+            // Check right
+            if (!isSel(x + 1, y)) {
+              g.moveTo(x + 1, y);
+              g.lineTo(x + 1, y + 1);
+            }
+          }
+        }
       }
     },
     [dimensions, selection],
