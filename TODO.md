@@ -2,14 +2,14 @@
 
 ## Phase 1 — Editor Foundation
 
-- [ ] Set up React + Vite project structure
-- [ ] Configure Tailwind CSS
-- [ ] Initialize PixiJS canvas/rendering engine wrapper
-- [ ] Implement core pixel tools (Pencil, Eraser, Line, Rectangle, Ellipse, Fill, Color Picker, Select, Move, etc.)
-- [ ] Implement layer management (add, remove, visibility, opacity, order)
-- [ ] Implement undo/redo history (non-destructive)
-- [ ] Add basic keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z, tool bindings)
-- [ ] Build basic Workspace UI (toolbar, canvas, layers/assets, properties, status bar)
+- [x] Set up React + Vite project structure
+- [x] Configure Tailwind CSS
+- [x] Initialize PixiJS canvas/rendering engine wrapper
+- [x] Implement core pixel tools (Pencil, Eraser, Line, Rectangle, Ellipse, Fill, Color Picker, Select, Move, etc.)
+- [x] Implement layer management (add, remove, visibility, opacity, order)
+- [x] Implement undo/redo history (non-destructive)
+- [x] Add basic keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z, tool bindings)
+- [x] Build basic Workspace UI (toolbar, canvas, layers/assets, properties, status bar)
 
 ## Phase 2 — File Workflow
 
