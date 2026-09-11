@@ -86,12 +86,6 @@ const SelectionOverlay = ({
       g.clear();
       if (!selection) return;
 
-      // Dim unselected area
-      g.beginFill(0x000000, 0.3);
-      g.drawRect(0, 0, dimensions.width, dimensions.height);
-      g.endFill();
-
-      g.lineStyle(1, 0xffffff, 1);
       let minX = dimensions.width,
         minY = dimensions.height,
         maxX = -1,
@@ -108,8 +102,51 @@ const SelectionOverlay = ({
           }
         }
       }
+
       if (hasSel) {
+        g.beginFill(0x000000, 0.3);
+
+        // Top
+        if (minY > 0) {
+          g.drawRect(0, 0, dimensions.width, minY);
+        }
+
+        // Bottom
+        if (maxY < dimensions.height - 1) {
+          g.drawRect(
+            0,
+            maxY + 1,
+            dimensions.width,
+            dimensions.height - (maxY + 1),
+          );
+        }
+
+        // Left (middle section)
+        if (minX > 0) {
+          g.drawRect(0, minY, minX, maxY - minY + 1);
+        }
+
+        // Right (middle section)
+        if (maxX < dimensions.width - 1) {
+          g.drawRect(
+            maxX + 1,
+            minY,
+            dimensions.width - (maxX + 1),
+            maxY - minY + 1,
+          );
+        }
+
+        g.endFill();
+
+        g.lineStyle(1, 0xffffff, 1);
         g.drawRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+      } else {
+        // If nothing is selected technically, just dim everything?
+        // Wait, if !selection we returned early, but if selection array is all 0s we get here.
+        // Let's just dim the whole screen in that case.
+        g.beginFill(0x000000, 0.3);
+        g.drawRect(0, 0, dimensions.width, dimensions.height);
+        g.endFill();
       }
     },
     [dimensions, selection],
@@ -140,6 +177,9 @@ export const PixelCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [activeSelection, setActiveSelection] = useState<Uint8Array | null>(
+    null,
+  );
 
   const lastPanPosition = useRef<{ x: number; y: number } | null>(null);
   const startDrawPos = useRef<{ x: number; y: number } | null>(null);
@@ -694,6 +734,40 @@ export const PixelCanvas: React.FC = () => {
 
     if (currentTool === "select") {
       lastDrawPos.current = { x, y };
+
+      if (startDrawPos.current) {
+        const startX = Math.min(startDrawPos.current.x, lastDrawPos.current.x);
+        const startY = Math.min(startDrawPos.current.y, lastDrawPos.current.y);
+        const endX = Math.max(startDrawPos.current.x, lastDrawPos.current.x);
+        const endY = Math.max(startDrawPos.current.y, lastDrawPos.current.y);
+
+        const newSelection = new Uint8Array(
+          dimensions.width * dimensions.height,
+        );
+        for (
+          let j = Math.max(0, startY);
+          j <= Math.min(dimensions.height - 1, endY);
+          j++
+        ) {
+          for (
+            let i = Math.max(0, startX);
+            i <= Math.min(dimensions.width - 1, endX);
+            i++
+          ) {
+            newSelection[j * dimensions.width + i] = 1;
+          }
+        }
+
+        if (e.shiftKey && selection) {
+          for (let i = 0; i < newSelection.length; i++)
+            newSelection[i] = newSelection[i] || selection[i];
+        } else if (e.altKey && selection) {
+          for (let i = 0; i < newSelection.length; i++)
+            newSelection[i] = selection[i] && !newSelection[i] ? 1 : 0;
+        }
+
+        setActiveSelection(newSelection);
+      }
       return;
     }
 
@@ -842,6 +916,7 @@ export const PixelCanvas: React.FC = () => {
         }
 
         setSelection(newSelection);
+        setActiveSelection(null);
         return;
       }
 
@@ -1034,7 +1109,10 @@ export const PixelCanvas: React.FC = () => {
               {/* Preview layer for drawing shapes / moving */}
               {previewLayer}
 
-              <SelectionOverlay dimensions={dimensions} selection={selection} />
+              <SelectionOverlay
+                dimensions={dimensions}
+                selection={activeSelection || selection}
+              />
             </pixiContainer>
           </Application>
         </div>
