@@ -65,34 +65,40 @@ export function loadProject(store: AppState) {
         const projectData = JSON.parse(result);
 
         // Basic validation
-        if (!projectData.dimensions || !projectData.layers) {
+        if (
+          projectData.version !== 1 ||
+          !Number.isInteger(projectData.dimensions?.width) ||
+          !Number.isInteger(projectData.dimensions?.height) ||
+          projectData.dimensions.width < 1 ||
+          projectData.dimensions.height < 1 ||
+          !Array.isArray(projectData.layers)
+        ) {
           throw new Error("Invalid project format");
         }
 
-        const deserializedLayers = projectData.layers.map((layer: any) => ({
-          ...layer,
-          data: base64ToUint8ClampedArray(layer.data),
-        }));
+        const expectedLength =
+          projectData.dimensions.width * projectData.dimensions.height * 4;
+        const deserializedLayers = projectData.layers.map((layer: unknown) => {
+          if (!layer || typeof layer !== "object") throw new Error("Invalid layer");
+          const savedLayer = layer as Record<string, unknown>;
+          if (typeof savedLayer.data !== "string") throw new Error("Invalid layer data");
+          const data = base64ToUint8ClampedArray(savedLayer.data);
+          if (data.length !== expectedLength) throw new Error("Layer size does not match canvas");
+          return {
+            id: typeof savedLayer.id === "string" ? savedLayer.id : crypto.randomUUID(),
+            name: typeof savedLayer.name === "string" ? savedLayer.name : "Layer",
+            visible: savedLayer.visible !== false,
+            opacity: typeof savedLayer.opacity === "number" ? savedLayer.opacity : 1,
+            data,
+          };
+        });
 
-        store.setDimensions(
-          projectData.dimensions.width,
-          projectData.dimensions.height,
-        );
-
-        // Reset layers manually in the store, we need a way to completely overwrite state
-        // Let's use the methods available or we'll need to add a reset function to store.
-
-        // Let's implement a clean way to load by doing it manually using store methods
-        // First, clear all existing layers
-        store.layers.forEach((l) => store.removeLayer(l.id));
-
-        // Store doesn't have a batch set method for project load, we need to add it or do it carefully
-        // For now, let's just add one layer so the app doesn't crash, and we'll implement a proper store update
-        // We will modify the store to add a `loadProjectState` method in a moment.
-
-        // For now:
         store.loadProjectState(
-          projectData.metadata,
+          {
+            name: typeof projectData.metadata?.name === "string" ? projectData.metadata.name : "Untitled Project",
+            createdAt: projectData.metadata?.createdAt ?? new Date().toISOString(),
+            updatedAt: projectData.metadata?.updatedAt ?? new Date().toISOString(),
+          },
           projectData.dimensions,
           deserializedLayers,
           projectData.activeLayerId,
@@ -106,6 +112,48 @@ export function loadProject(store: AppState) {
   };
   input.click();
 }
+
+/** Decode a PNG into editor-native RGBA pixels and make it the current project. */
+export function importPNG(store: AppState) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png";
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) throw new Error("Canvas is unavailable");
+        context.imageSmoothingEnabled = false;
+        context.drawImage(image, 0, 0);
+        const data = new Uint8ClampedArray(context.getImageData(0, 0, canvas.width, canvas.height).data);
+        const now = new Date().toISOString();
+        const layerId = crypto.randomUUID();
+        store.loadProjectState(
+          { name: file.name.replace(/\.png$/i, "") || "Imported image", createdAt: now, updatedAt: now },
+          { width: canvas.width, height: canvas.height },
+          [{ id: layerId, name: "Imported image", visible: true, opacity: 1, data }],
+          layerId,
+        );
+      } catch (error) {
+        console.error("Failed to import PNG:", error);
+        alert("Could not import this PNG file.");
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+    image.onerror = () => { URL.revokeObjectURL(objectUrl); alert("Could not decode this PNG file."); };
+    image.src = objectUrl;
+  };
+  input.click();
+}
+
 
 export function exportToPNG(store: AppState, scale: number = 1) {
   const { dimensions, layers } = store;

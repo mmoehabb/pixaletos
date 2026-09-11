@@ -35,6 +35,11 @@ export interface AppState extends ProjectState, EditorState, HistoryState {
     layers: Layer[],
     activeLayerId: string | null,
   ) => void;
+  replaceCanvas: (
+    dimensions: ProjectState["dimensions"],
+    layers: Layer[],
+    activeLayerId: string | null,
+  ) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -166,4 +171,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       past: [], // Reset history on load
       future: [],
     }),
+
+  replaceCanvas: (dimensions, layers, activeLayerId) =>
+    set((state) => ({
+      dimensions,
+      layers,
+      activeLayerId,
+      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+    })),
 }));
