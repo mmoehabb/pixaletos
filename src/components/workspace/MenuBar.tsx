@@ -8,6 +8,7 @@ import {
 } from "../../utils/project";
 import { flipImage, rotateImage } from "../../utils/transforms";
 import { TransformDialog, type TransformMode } from "./TransformDialog";
+import { NewProjectDialog } from "./NewProjectDialog";
 import type { Command, Layer } from "../../types";
 
 interface MenuItem {
@@ -95,6 +96,7 @@ export function MenuBar() {
   const [transformMode, setTransformMode] = useState<TransformMode | null>(
     null,
   );
+  const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const store = useAppStore();
 
   const cloneLayers = (layers: Layer[]) =>
@@ -137,7 +139,10 @@ export function MenuBar() {
   };
 
   const fileItems: MenuItem[] = [
-    { label: "New Project", onClick: () => store.createNewProject() },
+    {
+      label: "New Project",
+      onClick: () => setIsNewProjectDialogOpen(true),
+    },
     { divider: true },
     {
       label: "Import PNG...",
@@ -275,6 +280,9 @@ export function MenuBar() {
           mode={transformMode}
           onClose={() => setTransformMode(null)}
         />
+      )}
+      {isNewProjectDialogOpen && (
+        <NewProjectDialog onClose={() => setIsNewProjectDialogOpen(false)} />
       )}
     </>
   );

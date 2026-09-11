@@ -215,6 +215,11 @@ export const PixelCanvas: React.FC = () => {
     return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
   };
 
+  // Selection masks are tied to canvas dimensions. Treat a stale mask as no
+  // selection, rather than silently rejecting every newly added pixel.
+  const hasValidSelection =
+    selection?.length === dimensions.width * dimensions.height;
+
   const drawPixel = (
     data: Uint8ClampedArray,
     x: number,
@@ -224,7 +229,7 @@ export const PixelCanvas: React.FC = () => {
   ) => {
     if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height)
       return;
-    if (selection && !selection[y * dimensions.width + x]) return;
+    if (hasValidSelection && !selection[y * dimensions.width + x]) return;
 
     const i = (y * dimensions.width + x) * 4;
     const oldR = data[i],
@@ -422,7 +427,8 @@ export const PixelCanvas: React.FC = () => {
       return;
 
     const match = (x: number, y: number) => {
-      if (selection && !selection[y * dimensions.width + x]) return false;
+      if (hasValidSelection && !selection[y * dimensions.width + x])
+        return false;
       const p = getPixel(data, x, y);
       return (
         p.r === targetColor.r &&
