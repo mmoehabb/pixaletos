@@ -11,6 +11,7 @@ import {
   Circle,
   Minus,
   Pipette,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
@@ -90,7 +91,7 @@ export const Toolbar: React.FC = () => {
         {renderTool("zoom", <ZoomIn size={20} />, "Zoom (Z)")}
       </div>
 
-      <div className="mt-auto flex flex-col items-center gap-2">
+      <div className="mt-auto flex flex-col items-center gap-3 mb-2">
         <div className="relative w-8 h-8">
           <input
             type="color"
@@ -109,6 +110,17 @@ export const Toolbar: React.FC = () => {
             title="Foreground Color"
           />
         </div>
+        <button
+          onClick={() => {
+            const temp = foregroundColor;
+            setForegroundColor(backgroundColor);
+            setBackgroundColor(temp);
+          }}
+          className="text-neutral-500 hover:text-white transition-colors"
+          title="Swap Colors"
+        >
+          <ArrowRightLeft size={14} />
+        </button>
       </div>
     </div>
   );

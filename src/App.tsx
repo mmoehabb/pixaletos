@@ -53,19 +53,19 @@ function App() {
             Size: {dimensions.width}x{dimensions.height}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setZoom(Math.max(0.1, zoom - 0.5))}
-            className="hover:text-white"
+            className="hover:text-white px-2 py-1 flex items-center justify-center cursor-pointer"
           >
             -
           </button>
-          <span className="w-12 text-center text-white">
+          <span className="w-12 text-center text-white px-2">
             {Math.round(zoom * 100)}%
           </span>
           <button
             onClick={() => setZoom(Math.min(20, zoom + 0.5))}
-            className="hover:text-white"
+            className="hover:text-white px-2 py-1 flex items-center justify-center cursor-pointer"
           >
             +
           </button>

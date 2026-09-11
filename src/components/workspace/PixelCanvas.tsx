@@ -131,8 +131,10 @@ export const PixelCanvas: React.FC = () => {
     selection,
     setSelection,
     setForegroundColor,
+    setZoom,
   } = useAppStore();
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -166,6 +168,30 @@ export const PixelCanvas: React.FC = () => {
   >(new Map());
 
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit to screen on initial load
+  const hasFitInitialZoom = useRef(false);
+  useEffect(() => {
+    if (!hasFitInitialZoom.current && containerRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const padding = 60; // Leave some space around the canvas
+      const availableWidth = containerRect.width - padding;
+      const availableHeight = containerRect.height - padding;
+
+      const zoomX = availableWidth / dimensions.width;
+      const zoomY = availableHeight / dimensions.height;
+      const initialZoom = Math.max(0.1, Math.floor(Math.min(zoomX, zoomY))); // Integer zoom is usually nicer for pixel art
+
+      setZoom(initialZoom);
+
+      // Center the canvas
+      const panX = (containerRect.width - dimensions.width * initialZoom) / 2;
+      const panY = (containerRect.height - dimensions.height * initialZoom) / 2;
+      setPan({ x: panX, y: panY });
+
+      hasFitInitialZoom.current = true;
+    }
+  }, [dimensions.width, dimensions.height, setZoom, setPan]);
 
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -493,6 +519,16 @@ export const PixelCanvas: React.FC = () => {
     }
 
     if (e.button !== 0) return;
+
+    if (currentTool === "zoom") {
+      if (e.altKey) {
+        setZoom(Math.max(0.1, zoom - 0.5));
+      } else {
+        setZoom(Math.min(20, zoom + 0.5));
+      }
+      return;
+    }
+
     const { x, y } = getCanvasCoords(e);
 
     if (currentTool === "eyedropper") {
@@ -869,6 +905,7 @@ export const PixelCanvas: React.FC = () => {
 
   return (
     <div
+      ref={containerRef}
       className="flex items-center justify-center w-full h-full bg-neutral-900 rounded-md overflow-hidden p-4 relative select-none touch-none"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -883,6 +920,7 @@ export const PixelCanvas: React.FC = () => {
           transformOrigin: "top left",
           width: dimensions.width,
           height: dimensions.height,
+          imageRendering: "pixelated",
           backgroundSize: "2px 2px",
           backgroundImage:
             "conic-gradient(var(--tw-colors-neutral-300) 90deg, var(--tw-colors-neutral-100) 90deg 180deg, var(--tw-colors-neutral-300) 180deg 270deg, var(--tw-colors-neutral-100) 270deg)",
