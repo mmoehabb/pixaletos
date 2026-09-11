@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "../../store";
-import { exportToPNG, saveProject, loadProject } from "../../utils/project";
+import {
+  exportToPNG,
+  importPNG,
+  loadProject,
+  saveProject,
+} from "../../utils/project";
+import { flipImage, rotateImage } from "../../utils/transforms";
+import { TransformDialog, type TransformMode } from "./TransformDialog";
+import { NewProjectDialog } from "./NewProjectDialog";
+import type { Command, Layer } from "../../types";
 
 interface MenuItem {
   label?: string;
@@ -84,15 +93,62 @@ function MenuDropdown({
 
 export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [transformMode, setTransformMode] = useState<TransformMode | null>(
+    null,
+  );
+  const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const store = useAppStore();
+
+  const cloneLayers = (layers: Layer[]) =>
+    layers.map((layer) => ({
+      ...layer,
+      data: new Uint8ClampedArray(layer.data),
+    }));
+  const applyTransform = (
+    name: string,
+    dimensions: typeof store.dimensions,
+    layers: Layer[],
+  ) => {
+    const before = {
+      dimensions: { ...store.dimensions },
+      layers: cloneLayers(store.layers),
+      activeLayerId: store.activeLayerId,
+    };
+    const after = {
+      dimensions,
+      layers: cloneLayers(layers),
+      activeLayerId: store.activeLayerId,
+    };
+    const apply = (snapshot: typeof before) =>
+      useAppStore
+        .getState()
+        .replaceCanvas(
+          snapshot.dimensions,
+          cloneLayers(snapshot.layers),
+          snapshot.activeLayerId,
+        );
+    store.executeCommand({
+      name,
+      undo: () => apply(before),
+      redo: () => apply(after),
+    } satisfies Command);
+  };
 
   const handleToggle = (menuName: string) => {
     setOpenMenu(openMenu === menuName ? null : menuName);
   };
 
   const fileItems: MenuItem[] = [
-    { label: "New Project", onClick: () => console.log("New Project") },
+    {
+      label: "New Project",
+      onClick: () => setIsNewProjectDialogOpen(true),
+    },
     { divider: true },
+    {
+      label: "Import PNG...",
+      shortcut: "Ctrl+I",
+      onClick: () => importPNG(store),
+    },
     {
       label: "Open Project...",
       shortcut: "Ctrl+O",
@@ -121,12 +177,49 @@ export function MenuBar() {
   ];
 
   const imageItems: MenuItem[] = [
-    { label: "Canvas Size..." },
-    { label: "Resize..." },
+    {
+      label: "Canvas Size...",
+      onClick: () => setTransformMode("canvas"),
+    },
+    { label: "Resize...", onClick: () => setTransformMode("scale") },
     { divider: true },
-    { label: "Crop" },
-    { label: "Flip Horizontal" },
-    { label: "Flip Vertical" },
+    { label: "Crop...", onClick: () => setTransformMode("crop") },
+    {
+      label: "Rotate 90° Clockwise",
+      onClick: () => {
+        const result = rotateImage(store.layers, store.dimensions, true);
+        applyTransform("Rotate clockwise", result.dimensions, result.layers);
+      },
+    },
+    {
+      label: "Rotate 90° Counterclockwise",
+      onClick: () => {
+        const result = rotateImage(store.layers, store.dimensions, false);
+        applyTransform(
+          "Rotate counterclockwise",
+          result.dimensions,
+          result.layers,
+        );
+      },
+    },
+    {
+      label: "Flip Horizontal",
+      onClick: () =>
+        applyTransform(
+          "Flip horizontal",
+          store.dimensions,
+          flipImage(store.layers, store.dimensions, true),
+        ),
+    },
+    {
+      label: "Flip Vertical",
+      onClick: () =>
+        applyTransform(
+          "Flip vertical",
+          store.dimensions,
+          flipImage(store.layers, store.dimensions, false),
+        ),
+    },
   ];
 
   const layerItems: MenuItem[] = [
@@ -169,17 +262,28 @@ export function MenuBar() {
   ];
 
   return (
-    <nav aria-label="Application menu" className="flex gap-1 text-sm">
-      {menus.map((menu) => (
-        <MenuDropdown
-          key={menu.label}
-          label={menu.label}
-          items={menu.items}
-          isOpen={openMenu === menu.label}
-          onToggle={() => handleToggle(menu.label)}
-          onClose={() => setOpenMenu(null)}
+    <>
+      <nav aria-label="Application menu" className="flex gap-1 text-sm">
+        {menus.map((menu) => (
+          <MenuDropdown
+            key={menu.label}
+            label={menu.label}
+            items={menu.items}
+            isOpen={openMenu === menu.label}
+            onToggle={() => handleToggle(menu.label)}
+            onClose={() => setOpenMenu(null)}
+          />
+        ))}
+      </nav>
+      {transformMode && (
+        <TransformDialog
+          mode={transformMode}
+          onClose={() => setTransformMode(null)}
         />
-      ))}
-    </nav>
+      )}
+      {isNewProjectDialogOpen && (
+        <NewProjectDialog onClose={() => setIsNewProjectDialogOpen(false)} />
+      )}
+    </>
   );
 }

@@ -151,13 +151,10 @@ export const PixelCanvas: React.FC = () => {
   const [previewDataVersion, setPreviewDataVersion] = useState(0);
 
   // Update previewData array size when dimensions change
-  useEffect(() => {
-    previewDataRef.current = new Uint8ClampedArray(
-      dimensions.width * dimensions.height * 4,
-    );
-    // Don't call setState here to avoid cascading renders warning, just wait for next interaction
-    // setPreviewDataVersion(v => v + 1);
-  }, [dimensions]);
+  const expectedLength = dimensions.width * dimensions.height * 4;
+  if (previewDataRef.current.length !== expectedLength) {
+    previewDataRef.current = new Uint8ClampedArray(expectedLength);
+  }
 
   // We will directly mutate layer.data in pencil/eraser to be fast, but we will keep track of diffs
   const strokeDiff = useRef<
@@ -172,10 +169,10 @@ export const PixelCanvas: React.FC = () => {
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Auto-fit to screen on initial load
-  const hasFitInitialZoom = useRef(false);
+  // Keep a resized, rotated, or imported canvas visible and centred. The
+  // previous one-time fit left an altered canvas using stale viewport offsets.
   useEffect(() => {
-    if (!hasFitInitialZoom.current && containerRef.current) {
+    if (containerRef.current) {
       const containerRect = containerRef.current.getBoundingClientRect();
       const padding = 60; // Leave some space around the canvas
       const availableWidth = containerRect.width - padding;
@@ -193,8 +190,6 @@ export const PixelCanvas: React.FC = () => {
       const panX = (containerRect.width - dimensions.width) / 2;
       const panY = (containerRect.height - dimensions.height) / 2;
       setPan({ x: panX, y: panY });
-
-      hasFitInitialZoom.current = true;
     }
   }, [dimensions.width, dimensions.height, setZoom, setPan]);
 
@@ -217,6 +212,11 @@ export const PixelCanvas: React.FC = () => {
     return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
   };
 
+  // Selection masks are tied to canvas dimensions. Treat a stale mask as no
+  // selection, rather than silently rejecting every newly added pixel.
+  const hasValidSelection =
+    selection?.length === dimensions.width * dimensions.height;
+
   const drawPixel = (
     data: Uint8ClampedArray,
     x: number,
@@ -226,7 +226,7 @@ export const PixelCanvas: React.FC = () => {
   ) => {
     if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height)
       return;
-    if (selection && !selection[y * dimensions.width + x]) return;
+    if (hasValidSelection && !selection[y * dimensions.width + x]) return;
 
     const i = (y * dimensions.width + x) * 4;
     const oldR = data[i],
@@ -424,7 +424,8 @@ export const PixelCanvas: React.FC = () => {
       return;
 
     const match = (x: number, y: number) => {
-      if (selection && !selection[y * dimensions.width + x]) return false;
+      if (hasValidSelection && !selection[y * dimensions.width + x])
+        return false;
       const p = getPixel(data, x, y);
       return (
         p.r === targetColor.r &&
@@ -1007,7 +1008,11 @@ export const PixelCanvas: React.FC = () => {
         }}
       >
         <div ref={canvasRef} className="w-full h-full pointer-events-none">
+          {/* Pixi initializes its renderer and GPU textures at a specific size.
+              Remount on dimension changes so resized pixel buffers never reach
+              a renderer created for the old dimensions. */}
           <Application
+            key={`${dimensions.width}x${dimensions.height}`}
             backgroundAlpha={0}
             width={dimensions.width}
             height={dimensions.height}
