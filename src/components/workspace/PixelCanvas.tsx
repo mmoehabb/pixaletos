@@ -983,7 +983,7 @@ export const PixelCanvas: React.FC = () => {
     >
       <div
         aria-label="Pixel canvas"
-        className="absolute rounded-sm shadow-[0_12px_36px_rgba(0,0,0,0.35)]"
+        className="absolute left-0 top-0 rounded-sm shadow-[0_12px_36px_rgba(0,0,0,0.35)]"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: "center",
