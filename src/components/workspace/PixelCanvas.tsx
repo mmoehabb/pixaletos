@@ -151,13 +151,10 @@ export const PixelCanvas: React.FC = () => {
   const [previewDataVersion, setPreviewDataVersion] = useState(0);
 
   // Update previewData array size when dimensions change
-  useEffect(() => {
-    previewDataRef.current = new Uint8ClampedArray(
-      dimensions.width * dimensions.height * 4,
-    );
-    // Don't call setState here to avoid cascading renders warning, just wait for next interaction
-    // setPreviewDataVersion(v => v + 1);
-  }, [dimensions]);
+  const expectedLength = dimensions.width * dimensions.height * 4;
+  if (previewDataRef.current.length !== expectedLength) {
+    previewDataRef.current = new Uint8ClampedArray(expectedLength);
+  }
 
   // We will directly mutate layer.data in pencil/eraser to be fast, but we will keep track of diffs
   const strokeDiff = useRef<

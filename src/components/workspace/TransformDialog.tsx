@@ -5,7 +5,7 @@ import type { Command, Layer } from "../../types";
 
 export type TransformMode = "canvas" | "scale" | "crop";
 
-function cloneLayers(layers: Layer[]) {
+function cloneLayers(layers: Layer[]): Layer[] {
   return layers.map((layer) => ({
     ...layer,
     data: new Uint8ClampedArray(layer.data),
