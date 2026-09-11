@@ -177,6 +177,9 @@ export const PixelCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [activeSelection, setActiveSelection] = useState<Uint8Array | null>(
+    null,
+  );
 
   const lastPanPosition = useRef<{ x: number; y: number } | null>(null);
   const startDrawPos = useRef<{ x: number; y: number } | null>(null);
@@ -731,6 +734,40 @@ export const PixelCanvas: React.FC = () => {
 
     if (currentTool === "select") {
       lastDrawPos.current = { x, y };
+
+      if (startDrawPos.current) {
+        const startX = Math.min(startDrawPos.current.x, lastDrawPos.current.x);
+        const startY = Math.min(startDrawPos.current.y, lastDrawPos.current.y);
+        const endX = Math.max(startDrawPos.current.x, lastDrawPos.current.x);
+        const endY = Math.max(startDrawPos.current.y, lastDrawPos.current.y);
+
+        const newSelection = new Uint8Array(
+          dimensions.width * dimensions.height,
+        );
+        for (
+          let j = Math.max(0, startY);
+          j <= Math.min(dimensions.height - 1, endY);
+          j++
+        ) {
+          for (
+            let i = Math.max(0, startX);
+            i <= Math.min(dimensions.width - 1, endX);
+            i++
+          ) {
+            newSelection[j * dimensions.width + i] = 1;
+          }
+        }
+
+        if (e.shiftKey && selection) {
+          for (let i = 0; i < newSelection.length; i++)
+            newSelection[i] = newSelection[i] || selection[i];
+        } else if (e.altKey && selection) {
+          for (let i = 0; i < newSelection.length; i++)
+            newSelection[i] = selection[i] && !newSelection[i] ? 1 : 0;
+        }
+
+        setActiveSelection(newSelection);
+      }
       return;
     }
 
@@ -879,6 +916,7 @@ export const PixelCanvas: React.FC = () => {
         }
 
         setSelection(newSelection);
+        setActiveSelection(null);
         return;
       }
 
@@ -1071,7 +1109,10 @@ export const PixelCanvas: React.FC = () => {
               {/* Preview layer for drawing shapes / moving */}
               {previewLayer}
 
-              <SelectionOverlay dimensions={dimensions} selection={selection} />
+              <SelectionOverlay
+                dimensions={dimensions}
+                selection={activeSelection || selection}
+              />
             </pixiContainer>
           </Application>
         </div>
