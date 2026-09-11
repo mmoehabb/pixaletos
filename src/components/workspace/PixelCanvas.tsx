@@ -187,9 +187,11 @@ export const PixelCanvas: React.FC = () => {
 
       setZoom(initialZoom);
 
-      // Center the canvas
-      const panX = (containerRect.width - dimensions.width * initialZoom) / 2;
-      const panY = (containerRect.height - dimensions.height * initialZoom) / 2;
+      // Position the unscaled canvas center at the workspace center. With the
+      // transform origin below set to the canvas center, this keeps the canvas
+      // centered at every zoom level and makes that center the zoom pivot.
+      const panX = (containerRect.width - dimensions.width) / 2;
+      const panY = (containerRect.height - dimensions.height) / 2;
       setPan({ x: panX, y: panY });
 
       hasFitInitialZoom.current = true;
@@ -984,7 +986,7 @@ export const PixelCanvas: React.FC = () => {
         className="absolute rounded-sm shadow-[0_12px_36px_rgba(0,0,0,0.35)]"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: "top left",
+          transformOrigin: "center",
           width: dimensions.width,
           height: dimensions.height,
           imageRendering: "pixelated",
