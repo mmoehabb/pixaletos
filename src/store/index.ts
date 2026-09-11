@@ -9,6 +9,7 @@ import type {
 } from "../types";
 
 export interface AppState extends ProjectState, EditorState, HistoryState {
+  createNewProject: (width?: number, height?: number) => void;
   setDimensions: (width: number, height: number) => void;
   setTool: (tool: Tool) => void;
   setForegroundColor: (color: string) => void;
@@ -65,6 +66,32 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   past: [],
   future: [],
+
+  createNewProject: (width = 64, height = 64) =>
+    set(() => {
+      const now = new Date().toISOString();
+      const layer: Layer = {
+        id: crypto.randomUUID(),
+        name: "Layer 1",
+        visible: true,
+        opacity: 1,
+        data: new Uint8ClampedArray(width * height * 4),
+      };
+      return {
+        metadata: {
+          name: "Untitled Project",
+          createdAt: now,
+          updatedAt: now,
+        },
+        dimensions: { width, height },
+        layers: [layer],
+        activeLayerId: layer.id,
+        selection: null,
+        pan: { x: 0, y: 0 },
+        past: [],
+        future: [],
+      };
+    }),
 
   setDimensions: (width, height) =>
     set((state) => ({
@@ -168,6 +195,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       dimensions,
       layers,
       activeLayerId,
+      selection: null,
       past: [], // Reset history on load
       future: [],
     }),
@@ -177,6 +205,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       dimensions,
       layers,
       activeLayerId,
+      // A selection mask is dimension-dependent. Keeping the old mask would
+      // block drawing outside its former bounds after a resize or rotation.
+      selection: null,
       metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
     })),
 }));

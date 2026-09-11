@@ -172,10 +172,10 @@ export const PixelCanvas: React.FC = () => {
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Auto-fit to screen on initial load
-  const hasFitInitialZoom = useRef(false);
+  // Keep a resized, rotated, or imported canvas visible and centred. The
+  // previous one-time fit left an altered canvas using stale viewport offsets.
   useEffect(() => {
-    if (!hasFitInitialZoom.current && containerRef.current) {
+    if (containerRef.current) {
       const containerRect = containerRef.current.getBoundingClientRect();
       const padding = 60; // Leave some space around the canvas
       const availableWidth = containerRect.width - padding;
@@ -193,8 +193,6 @@ export const PixelCanvas: React.FC = () => {
       const panX = (containerRect.width - dimensions.width) / 2;
       const panY = (containerRect.height - dimensions.height) / 2;
       setPan({ x: panX, y: panY });
-
-      hasFitInitialZoom.current = true;
     }
   }, [dimensions.width, dimensions.height, setZoom, setPan]);
 

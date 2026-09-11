@@ -92,8 +92,9 @@ function MenuDropdown({
 
 export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [transformMode, setTransformMode] =
-    useState<TransformMode | null>(null);
+  const [transformMode, setTransformMode] = useState<TransformMode | null>(
+    null,
+  );
   const store = useAppStore();
 
   const cloneLayers = (layers: Layer[]) =>
@@ -136,7 +137,7 @@ export function MenuBar() {
   };
 
   const fileItems: MenuItem[] = [
-    { label: "New Project", onClick: () => console.log("New Project") },
+    { label: "New Project", onClick: () => store.createNewProject() },
     { divider: true },
     {
       label: "Import PNG...",
@@ -189,7 +190,11 @@ export function MenuBar() {
       label: "Rotate 90° Counterclockwise",
       onClick: () => {
         const result = rotateImage(store.layers, store.dimensions, false);
-        applyTransform("Rotate counterclockwise", result.dimensions, result.layers);
+        applyTransform(
+          "Rotate counterclockwise",
+          result.dimensions,
+          result.layers,
+        );
       },
     },
     {
@@ -254,16 +259,16 @@ export function MenuBar() {
   return (
     <>
       <nav aria-label="Application menu" className="flex gap-1 text-sm">
-      {menus.map((menu) => (
-        <MenuDropdown
-          key={menu.label}
-          label={menu.label}
-          items={menu.items}
-          isOpen={openMenu === menu.label}
-          onToggle={() => handleToggle(menu.label)}
-          onClose={() => setOpenMenu(null)}
-        />
-      ))}
+        {menus.map((menu) => (
+          <MenuDropdown
+            key={menu.label}
+            label={menu.label}
+            items={menu.items}
+            isOpen={openMenu === menu.label}
+            onToggle={() => handleToggle(menu.label)}
+            onClose={() => setOpenMenu(null)}
+          />
+        ))}
       </nav>
       {transformMode && (
         <TransformDialog

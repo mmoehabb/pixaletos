@@ -79,25 +79,38 @@ export function loadProject(store: AppState) {
         const expectedLength =
           projectData.dimensions.width * projectData.dimensions.height * 4;
         const deserializedLayers = projectData.layers.map((layer: unknown) => {
-          if (!layer || typeof layer !== "object") throw new Error("Invalid layer");
+          if (!layer || typeof layer !== "object")
+            throw new Error("Invalid layer");
           const savedLayer = layer as Record<string, unknown>;
-          if (typeof savedLayer.data !== "string") throw new Error("Invalid layer data");
+          if (typeof savedLayer.data !== "string")
+            throw new Error("Invalid layer data");
           const data = base64ToUint8ClampedArray(savedLayer.data);
-          if (data.length !== expectedLength) throw new Error("Layer size does not match canvas");
+          if (data.length !== expectedLength)
+            throw new Error("Layer size does not match canvas");
           return {
-            id: typeof savedLayer.id === "string" ? savedLayer.id : crypto.randomUUID(),
-            name: typeof savedLayer.name === "string" ? savedLayer.name : "Layer",
+            id:
+              typeof savedLayer.id === "string"
+                ? savedLayer.id
+                : crypto.randomUUID(),
+            name:
+              typeof savedLayer.name === "string" ? savedLayer.name : "Layer",
             visible: savedLayer.visible !== false,
-            opacity: typeof savedLayer.opacity === "number" ? savedLayer.opacity : 1,
+            opacity:
+              typeof savedLayer.opacity === "number" ? savedLayer.opacity : 1,
             data,
           };
         });
 
         store.loadProjectState(
           {
-            name: typeof projectData.metadata?.name === "string" ? projectData.metadata.name : "Untitled Project",
-            createdAt: projectData.metadata?.createdAt ?? new Date().toISOString(),
-            updatedAt: projectData.metadata?.updatedAt ?? new Date().toISOString(),
+            name:
+              typeof projectData.metadata?.name === "string"
+                ? projectData.metadata.name
+                : "Untitled Project",
+            createdAt:
+              projectData.metadata?.createdAt ?? new Date().toISOString(),
+            updatedAt:
+              projectData.metadata?.updatedAt ?? new Date().toISOString(),
           },
           projectData.dimensions,
           deserializedLayers,
@@ -132,13 +145,27 @@ export function importPNG(store: AppState) {
         if (!context) throw new Error("Canvas is unavailable");
         context.imageSmoothingEnabled = false;
         context.drawImage(image, 0, 0);
-        const data = new Uint8ClampedArray(context.getImageData(0, 0, canvas.width, canvas.height).data);
+        const data = new Uint8ClampedArray(
+          context.getImageData(0, 0, canvas.width, canvas.height).data,
+        );
         const now = new Date().toISOString();
         const layerId = crypto.randomUUID();
         store.loadProjectState(
-          { name: file.name.replace(/\.png$/i, "") || "Imported image", createdAt: now, updatedAt: now },
+          {
+            name: file.name.replace(/\.png$/i, "") || "Imported image",
+            createdAt: now,
+            updatedAt: now,
+          },
           { width: canvas.width, height: canvas.height },
-          [{ id: layerId, name: "Imported image", visible: true, opacity: 1, data }],
+          [
+            {
+              id: layerId,
+              name: "Imported image",
+              visible: true,
+              opacity: 1,
+              data,
+            },
+          ],
           layerId,
         );
       } catch (error) {
@@ -148,12 +175,14 @@ export function importPNG(store: AppState) {
         URL.revokeObjectURL(objectUrl);
       }
     };
-    image.onerror = () => { URL.revokeObjectURL(objectUrl); alert("Could not decode this PNG file."); };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      alert("Could not decode this PNG file.");
+    };
     image.src = objectUrl;
   };
   input.click();
 }
-
 
 export function exportToPNG(store: AppState, scale: number = 1) {
   const { dimensions, layers } = store;
