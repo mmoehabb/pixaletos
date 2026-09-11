@@ -25,7 +25,11 @@ interface ToolButtonProps {
 }
 
 const ToolButton: React.FC<
-  ToolButtonProps & { isActive: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void }
+  ToolButtonProps & {
+    isActive: boolean;
+    onClick: () => void;
+    onContextMenu?: (e: React.MouseEvent) => void;
+  }
 > = ({ icon, label, isActive, onClick, onContextMenu }) => {
   return (
     <button
@@ -61,7 +65,10 @@ export const Toolbar: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (selectMenuRef.current && !selectMenuRef.current.contains(event.target as Node)) {
+      if (
+        selectMenuRef.current &&
+        !selectMenuRef.current.contains(event.target as Node)
+      ) {
         setSelectMenuOpen(false);
       }
     };
@@ -86,7 +93,11 @@ export const Toolbar: React.FC = () => {
     let label = "Select (M)";
     let toolToActivate = lastSelectTool;
 
-    if (currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand") {
+    if (
+      currentTool === "select" ||
+      currentTool === "select_brush" ||
+      currentTool === "select_magic_wand"
+    ) {
       toolToActivate = currentTool;
     }
 
@@ -104,7 +115,11 @@ export const Toolbar: React.FC = () => {
           tool={toolToActivate}
           icon={icon}
           label={label + " (Right click for more)"}
-          isActive={currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand"}
+          isActive={
+            currentTool === "select" ||
+            currentTool === "select_brush" ||
+            currentTool === "select_magic_wand"
+          }
           onClick={() => setTool(toolToActivate)}
           onContextMenu={(e) => {
             e.preventDefault();

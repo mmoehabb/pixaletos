@@ -257,20 +257,13 @@ export const PixelCanvas: React.FC = () => {
   const hasValidSelection =
     selection?.length === dimensions.width * dimensions.height;
 
-  const drawSelectionPixel = (
-    mask: Uint8Array,
-    x: number,
-    y: number
-  ) => {
-    if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height) return;
+  const drawSelectionPixel = (mask: Uint8Array, x: number, y: number) => {
+    if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height)
+      return;
     mask[y * dimensions.width + x] = 1;
   };
 
-  const drawSelectionBrush = (
-    mask: Uint8Array,
-    x: number,
-    y: number
-  ) => {
+  const drawSelectionBrush = (mask: Uint8Array, x: number, y: number) => {
     const start = -Math.floor((brushSize - 1) / 2);
     const end = start + brushSize - 1;
     for (let offsetY = start; offsetY <= end; offsetY++) {
@@ -285,7 +278,7 @@ export const PixelCanvas: React.FC = () => {
     x0: number,
     y0: number,
     x1: number,
-    y1: number
+    y1: number,
   ) => {
     const dx = Math.abs(x1 - x0);
     const dy = Math.abs(y1 - y0);
@@ -502,7 +495,7 @@ export const PixelCanvas: React.FC = () => {
     data: Uint8ClampedArray,
     startX: number,
     startY: number,
-    mask: Uint8Array
+    mask: Uint8Array,
   ) => {
     const targetColor = getPixel(data, startX, startY);
 
@@ -723,14 +716,20 @@ export const PixelCanvas: React.FC = () => {
       return;
     }
 
-    if (currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand") {
+    if (
+      currentTool === "select" ||
+      currentTool === "select_brush" ||
+      currentTool === "select_magic_wand"
+    ) {
       setIsDrawing(true);
       startDrawPos.current = { x, y };
       lastDrawPos.current = { x, y };
       e.currentTarget.setPointerCapture(e.pointerId);
 
       if (currentTool === "select_brush") {
-        const newSelection = new Uint8Array(dimensions.width * dimensions.height);
+        const newSelection = new Uint8Array(
+          dimensions.width * dimensions.height,
+        );
         drawSelectionBrush(newSelection, x, y);
         setActiveSelection(newSelection);
       } else if (currentTool === "select_magic_wand") {
@@ -738,7 +737,9 @@ export const PixelCanvas: React.FC = () => {
         const layer = layers.find((l) => l.id === activeLayerId);
         if (!layer || !layer.visible) return;
 
-        const newSelection = new Uint8Array(dimensions.width * dimensions.height);
+        const newSelection = new Uint8Array(
+          dimensions.width * dimensions.height,
+        );
         selectionFloodFill(layer.data, x, y, newSelection);
         setActiveSelection(newSelection);
       }
@@ -835,13 +836,23 @@ export const PixelCanvas: React.FC = () => {
 
     if (x === prev.x && y === prev.y) return;
 
-    if (currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand") {
+    if (
+      currentTool === "select" ||
+      currentTool === "select_brush" ||
+      currentTool === "select_magic_wand"
+    ) {
       if (currentTool === "select") {
         lastDrawPos.current = { x, y };
 
         if (startDrawPos.current) {
-          const startX = Math.min(startDrawPos.current.x, lastDrawPos.current.x);
-          const startY = Math.min(startDrawPos.current.y, lastDrawPos.current.y);
+          const startX = Math.min(
+            startDrawPos.current.x,
+            lastDrawPos.current.x,
+          );
+          const startY = Math.min(
+            startDrawPos.current.y,
+            lastDrawPos.current.y,
+          );
           const endX = Math.max(startDrawPos.current.x, lastDrawPos.current.x);
           const endY = Math.max(startDrawPos.current.y, lastDrawPos.current.y);
 
@@ -874,15 +885,17 @@ export const PixelCanvas: React.FC = () => {
         }
       } else if (currentTool === "select_brush") {
         if (activeSelection) {
-           const newSelection = new Uint8Array(activeSelection);
-           drawSelectionBrushLine(newSelection, prev.x, prev.y, x, y);
-           lastDrawPos.current = { x, y };
-           setActiveSelection(newSelection);
+          const newSelection = new Uint8Array(activeSelection);
+          drawSelectionBrushLine(newSelection, prev.x, prev.y, x, y);
+          lastDrawPos.current = { x, y };
+          setActiveSelection(newSelection);
         } else {
-           const newSelection = new Uint8Array(dimensions.width * dimensions.height);
-           drawSelectionBrushLine(newSelection, prev.x, prev.y, x, y);
-           lastDrawPos.current = { x, y };
-           setActiveSelection(newSelection);
+          const newSelection = new Uint8Array(
+            dimensions.width * dimensions.height,
+          );
+          drawSelectionBrushLine(newSelection, prev.x, prev.y, x, y);
+          lastDrawPos.current = { x, y };
+          setActiveSelection(newSelection);
         }
       }
       return;
@@ -998,13 +1011,21 @@ export const PixelCanvas: React.FC = () => {
       e.currentTarget.releasePointerCapture(e.pointerId);
 
       if (
-        (currentTool === "select" || currentTool === "select_brush" || currentTool === "select_magic_wand") &&
+        (currentTool === "select" ||
+          currentTool === "select_brush" ||
+          currentTool === "select_magic_wand") &&
         startDrawPos.current &&
         lastDrawPos.current
       ) {
         if (currentTool === "select") {
-          const startX = Math.min(startDrawPos.current.x, lastDrawPos.current.x);
-          const startY = Math.min(startDrawPos.current.y, lastDrawPos.current.y);
+          const startX = Math.min(
+            startDrawPos.current.x,
+            lastDrawPos.current.x,
+          );
+          const startY = Math.min(
+            startDrawPos.current.y,
+            lastDrawPos.current.y,
+          );
           const endX = Math.max(startDrawPos.current.x, lastDrawPos.current.x);
           const endY = Math.max(startDrawPos.current.y, lastDrawPos.current.y);
 
@@ -1034,18 +1055,21 @@ export const PixelCanvas: React.FC = () => {
           }
 
           setSelection(newSelection);
-        } else if (currentTool === "select_brush" || currentTool === "select_magic_wand") {
-           if (activeSelection) {
-              let finalSelection = new Uint8Array(activeSelection);
-              if (e.shiftKey && selection) {
-                for (let i = 0; i < finalSelection.length; i++)
-                  finalSelection[i] = finalSelection[i] || selection[i];
-              } else if (e.altKey && selection) {
-                for (let i = 0; i < finalSelection.length; i++)
-                  finalSelection[i] = selection[i] && !finalSelection[i] ? 1 : 0;
-              }
-              setSelection(finalSelection);
-           }
+        } else if (
+          currentTool === "select_brush" ||
+          currentTool === "select_magic_wand"
+        ) {
+          if (activeSelection) {
+            let finalSelection = new Uint8Array(activeSelection);
+            if (e.shiftKey && selection) {
+              for (let i = 0; i < finalSelection.length; i++)
+                finalSelection[i] = finalSelection[i] || selection[i];
+            } else if (e.altKey && selection) {
+              for (let i = 0; i < finalSelection.length; i++)
+                finalSelection[i] = selection[i] && !finalSelection[i] ? 1 : 0;
+            }
+            setSelection(finalSelection);
+          }
         }
 
         setActiveSelection(null);
