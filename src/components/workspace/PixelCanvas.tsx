@@ -24,12 +24,14 @@ const CanvasLayer = ({
   visible,
   dimensions,
   zIndex,
+  version,
 }: {
   data: Uint8ClampedArray;
   opacity: number;
   visible: boolean;
   dimensions: { width: number; height: number };
   zIndex?: number;
+  version?: number;
 }) => {
   const textureRef = useRef<Texture | null>(null);
   const [, forceRender] = useState(0);
@@ -58,7 +60,7 @@ const CanvasLayer = ({
       source.update();
       forceRender((v) => v + 1);
     }
-  }, [data]);
+  }, [data, version]);
 
   if (!textureRef.current) return null;
 
@@ -961,6 +963,7 @@ export const PixelCanvas: React.FC = () => {
         visible={true}
         dimensions={dimensions}
         zIndex={layers.length}
+        version={previewDataVersion}
       />
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
