@@ -16,9 +16,9 @@
 - [x] Implement Project format (JSON state preserving canvas, layers, metadata)
 - [x] Implement Project save and load functionality
 - [x] Implement PNG export (nearest-neighbor scaling, transparent background)
-- [ ] Implement basic image import (parse PNG to canvas)
+- [x] Implement basic image import (parse PNG to canvas)
 - [x] Build Menu bar (File, Edit, Image, Layer, View, AI)
-- [ ] Implement canvas resize and image transform (crop, rotate, flip, scale)
+- [x] Implement canvas resize and image transform (crop, rotate, flip, scale)
 
 ## Phase 3 — Spritesheet Tooling
 

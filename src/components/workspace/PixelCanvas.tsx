@@ -86,12 +86,6 @@ const SelectionOverlay = ({
       g.clear();
       if (!selection) return;
 
-      // Dim unselected area
-      g.beginFill(0x000000, 0.3);
-      g.drawRect(0, 0, dimensions.width, dimensions.height);
-      g.endFill();
-
-      g.lineStyle(1, 0xffffff, 1);
       let minX = dimensions.width,
         minY = dimensions.height,
         maxX = -1,
@@ -108,8 +102,51 @@ const SelectionOverlay = ({
           }
         }
       }
+
       if (hasSel) {
+        g.beginFill(0x000000, 0.3);
+
+        // Top
+        if (minY > 0) {
+          g.drawRect(0, 0, dimensions.width, minY);
+        }
+
+        // Bottom
+        if (maxY < dimensions.height - 1) {
+          g.drawRect(
+            0,
+            maxY + 1,
+            dimensions.width,
+            dimensions.height - (maxY + 1),
+          );
+        }
+
+        // Left (middle section)
+        if (minX > 0) {
+          g.drawRect(0, minY, minX, maxY - minY + 1);
+        }
+
+        // Right (middle section)
+        if (maxX < dimensions.width - 1) {
+          g.drawRect(
+            maxX + 1,
+            minY,
+            dimensions.width - (maxX + 1),
+            maxY - minY + 1,
+          );
+        }
+
+        g.endFill();
+
+        g.lineStyle(1, 0xffffff, 1);
         g.drawRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+      } else {
+        // If nothing is selected technically, just dim everything?
+        // Wait, if !selection we returned early, but if selection array is all 0s we get here.
+        // Let's just dim the whole screen in that case.
+        g.beginFill(0x000000, 0.3);
+        g.drawRect(0, 0, dimensions.width, dimensions.height);
+        g.endFill();
       }
     },
     [dimensions, selection],
