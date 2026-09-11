@@ -46,8 +46,10 @@ export const Toolbar: React.FC = () => {
     setTool,
     foregroundColor,
     backgroundColor,
+    brushSize,
     setForegroundColor,
     setBackgroundColor,
+    setBrushSize,
   } = useAppStore();
 
   const renderTool = (tool: Tool, icon: React.ReactNode, label: string) => (
@@ -66,6 +68,23 @@ export const Toolbar: React.FC = () => {
         {renderTool("select", <MousePointer2 size={20} />, "Select (M)")}
         {renderTool("move", <Move size={20} />, "Move (V)")}
       </div>
+
+      <label className="mb-4 flex flex-col items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+        Size
+        <input
+          type="number"
+          min="1"
+          max="64"
+          value={brushSize}
+          onChange={(event) =>
+            setBrushSize(
+              Math.max(1, Math.min(64, Number(event.target.value) || 1)),
+            )
+          }
+          className="w-10 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-xs text-neutral-200 outline-none focus:border-indigo-500"
+          title="Brush size"
+        />
+      </label>
 
       <div className="w-10 h-px bg-neutral-800 mb-4" />
 

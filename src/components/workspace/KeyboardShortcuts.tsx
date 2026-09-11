@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
 
 export const KeyboardShortcuts: React.FC = () => {
   const { setTool, undo, redo, setZoom, zoom, setSelection } = useAppStore();
+  const toolBeforePan = useRef<Tool | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,11 +90,20 @@ export const KeyboardShortcuts: React.FC = () => {
           setTool(toolMap[key]);
         }
 
-        // Spacebar panning (set tool to pan temporarily if held)
-        if (e.code === "Space") {
+        // Spacebar panning is temporary, preserving the selected drawing tool.
+        if (e.code === "Space" && !e.repeat) {
+          toolBeforePan.current = useAppStore.getState().currentTool;
           setTool("pan");
+          e.preventDefault();
         }
       }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !toolBeforePan.current) return;
+      setTool(toolBeforePan.current);
+      toolBeforePan.current = null;
+      e.preventDefault();
     };
 
     const handleWheel = (e: WheelEvent) => {
@@ -111,10 +121,12 @@ export const KeyboardShortcuts: React.FC = () => {
     };
 
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("wheel", handleWheel);
     };
   }, [setTool, undo, redo, setZoom, zoom, setSelection]);

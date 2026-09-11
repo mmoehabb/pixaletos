@@ -138,7 +138,7 @@ export const RightPanel: React.FC = () => {
               min="0"
               max="1"
               step="0.01"
-              value={layers.find((l) => l.id === activeLayerId)?.opacity || 1}
+              value={layers.find((l) => l.id === activeLayerId)?.opacity ?? 1}
               onChange={(e) =>
                 updateLayer(activeLayerId, {
                   opacity: parseFloat(e.target.value),
