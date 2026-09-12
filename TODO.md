@@ -22,11 +22,11 @@
 
 ## Phase 3 — Spritesheet Tooling
 
-- [ ] Create spritesheet input interface (drag/drop multiple assets)
-- [ ] Implement layout configuration (row layout, gap, padding, cell size)
-- [ ] Build live preview of spritesheet output
-- [ ] Implement spritesheet PNG export
-- [ ] Implement spritesheet JSON metadata export
+- [x] Create spritesheet input interface (drag/drop multiple assets)
+- [x] Implement layout configuration (row layout, gap, padding, cell size)
+- [x] Build live preview of spritesheet output
+- [x] Implement spritesheet PNG export
+- [x] Implement spritesheet JSON metadata export
 
 ## Phase 4 — AI Foundation
 
