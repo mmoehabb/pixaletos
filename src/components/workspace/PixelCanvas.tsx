@@ -184,8 +184,10 @@ const SelectionOverlay = ({
 
         if (minX <= maxX && minY <= maxY) {
           // Draw bounding box
+          g.beginFill(0x000000, 0); // Transparent fill so it doesn't pick up the next fill
           g.lineStyle(1 / zoom, 0x00ff00, 0.8);
           g.drawRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+          g.endFill();
 
           // Draw rotation handle
           const handleX = maxX + 0.5; // Offset to edge
@@ -267,6 +269,13 @@ export const PixelCanvas: React.FC = () => {
   >(new Map());
 
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Reset pivot when selection clears or tool changes
+    if (!selection) {
+      rotatePivot.current = null;
+    }
+  }, [selection, currentTool]);
 
   // Keep a resized, rotated, or imported canvas visible and centred. The
   // previous one-time fit left an altered canvas using stale viewport offsets.
@@ -1085,43 +1094,39 @@ export const PixelCanvas: React.FC = () => {
 
           previewDataRef.current.fill(0);
 
-          for (let py = 0; py < dimensions.height; py++) {
-            for (let px = 0; px < dimensions.width; px++) {
-              if (
-                movedSelectionData.current &&
-                movedSelectionData.current[py * dimensions.width + px]
-              ) {
-                const srcIdx = (py * dimensions.width + px) * 4;
+          // Use reverse mapping to avoid holes in rotated image
+          if (movedSelectionData.current && originalLayerData.current) {
+            for (let py = 0; py < dimensions.height; py++) {
+              for (let px = 0; px < dimensions.width; px++) {
+                const destRelX = px - pivot.x;
+                const destRelY = py - pivot.y;
 
-                // Relative to pivot
-                const relX = px - pivot.x;
-                const relY = py - pivot.y;
+                const srcRelX = destRelX * cosA + destRelY * sinA;
+                const srcRelY = -destRelX * sinA + destRelY * cosA;
 
-                // Rotate
-                const rotX = Math.round(relX * cosA - relY * sinA);
-                const rotY = Math.round(relX * sinA + relY * cosA);
-
-                // Back to absolute
-                const destX = rotX + pivot.x;
-                const destY = rotY + pivot.y;
+                const srcX = Math.round(srcRelX + pivot.x);
+                const srcY = Math.round(srcRelY + pivot.y);
 
                 if (
-                  destX >= 0 &&
-                  destX < dimensions.width &&
-                  destY >= 0 &&
-                  destY < dimensions.height
+                  srcX >= 0 &&
+                  srcX < dimensions.width &&
+                  srcY >= 0 &&
+                  srcY < dimensions.height
                 ) {
-                  const destIdx = (destY * dimensions.width + destX) * 4;
-                  // Handle nearest neighbor overwrites by simply assigning.
-                  // For a real robust rotation, you might reverse map dest->src to avoid holes.
-                  previewDataRef.current[destIdx] =
-                    originalLayerData.current[srcIdx];
-                  previewDataRef.current[destIdx + 1] =
-                    originalLayerData.current[srcIdx + 1];
-                  previewDataRef.current[destIdx + 2] =
-                    originalLayerData.current[srcIdx + 2];
-                  previewDataRef.current[destIdx + 3] =
-                    originalLayerData.current[srcIdx + 3];
+                  if (
+                    movedSelectionData.current[srcY * dimensions.width + srcX]
+                  ) {
+                    const srcIdx = (srcY * dimensions.width + srcX) * 4;
+                    const destIdx = (py * dimensions.width + px) * 4;
+                    previewDataRef.current[destIdx] =
+                      originalLayerData.current[srcIdx];
+                    previewDataRef.current[destIdx + 1] =
+                      originalLayerData.current[srcIdx + 1];
+                    previewDataRef.current[destIdx + 2] =
+                      originalLayerData.current[srcIdx + 2];
+                    previewDataRef.current[destIdx + 3] =
+                      originalLayerData.current[srcIdx + 3];
+                  }
                 }
               }
             }
@@ -1380,28 +1385,29 @@ export const PixelCanvas: React.FC = () => {
               if (pivot) {
                 for (let py = 0; py < dimensions.height; py++) {
                   for (let px = 0; px < dimensions.width; px++) {
+                    // dest is (px, py)
+                    const destRelX = px - pivot.x;
+                    const destRelY = py - pivot.y;
+
+                    const srcRelX = destRelX * cosA + destRelY * sinA;
+                    const srcRelY = -destRelX * sinA + destRelY * cosA;
+
+                    const srcX = Math.round(srcRelX + pivot.x);
+                    const srcY = Math.round(srcRelY + pivot.y);
+
                     if (
-                      movedSelectionData.current &&
-                      movedSelectionData.current[py * dimensions.width + px]
+                      srcX >= 0 &&
+                      srcX < dimensions.width &&
+                      srcY >= 0 &&
+                      srcY < dimensions.height
                     ) {
-                      // Relative to pivot
-                      const relX = px - pivot.x;
-                      const relY = py - pivot.y;
-
-                      // Rotate
-                      const rotX = Math.round(relX * cosA - relY * sinA);
-                      const rotY = Math.round(relX * sinA + relY * cosA);
-
-                      // Back to absolute
-                      const destX = rotX + pivot.x;
-                      const destY = rotY + pivot.y;
                       if (
-                        destX >= 0 &&
-                        destX < dimensions.width &&
-                        destY >= 0 &&
-                        destY < dimensions.height
+                        movedSelectionData.current &&
+                        movedSelectionData.current[
+                          srcY * dimensions.width + srcX
+                        ]
                       ) {
-                        newSelection[destY * dimensions.width + destX] = 1;
+                        newSelection[py * dimensions.width + px] = 1;
                       }
                     }
                   }
