@@ -31,6 +31,8 @@ export type Tool =
   | "ellipse"
   | "eyedropper"
   | "select"
+  | "select_brush"
+  | "select_magic_wand"
   | "move"
   | "pan"
   | "zoom";
