@@ -1,3 +1,5 @@
+![Pixalitos Banner](./public/banner.png)
+
 # Pixalitos
 
 **Pronounced:** _piksa-lee-tos_
