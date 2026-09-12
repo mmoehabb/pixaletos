@@ -95,14 +95,14 @@ const SelectionOverlay = ({
       }
 
       if (!hasSel) {
-        g.beginFill(0x000000, 0.3);
+        g.beginFill(0x000000, 0.6);
         g.drawRect(0, 0, dimensions.width, dimensions.height);
         g.endFill();
         return;
       }
 
       // Draw dimming for unselected pixels using horizontal spans to optimize
-      g.beginFill(0x000000, 0.3);
+      g.beginFill(0x000000, 0.6);
       for (let y = 0; y < dimensions.height; y++) {
         let spanStartX = -1;
         for (let x = 0; x < dimensions.width; x++) {
