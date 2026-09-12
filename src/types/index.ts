@@ -33,6 +33,7 @@ export type Tool =
   | "select"
   | "select_brush"
   | "select_magic_wand"
+  | "select_lasso"
   | "move"
   | "pan"
   | "zoom";
