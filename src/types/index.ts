@@ -35,6 +35,7 @@ export type Tool =
   | "select_magic_wand"
   | "select_lasso"
   | "move"
+  | "rotate"
   | "pan"
   | "zoom";
 

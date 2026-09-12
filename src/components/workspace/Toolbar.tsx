@@ -8,6 +8,7 @@ import {
   Brush,
   LassoSelect,
   Move,
+  RotateCw,
   ZoomIn,
   Hand,
   Square,
@@ -185,6 +186,7 @@ export const Toolbar: React.FC = () => {
       <div className="flex flex-col mb-4 w-full px-2">
         {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}
+        {renderTool("rotate", <RotateCw size={20} />, "Rotate (R)")}
       </div>
 
       <label className="mb-4 flex flex-col items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
@@ -217,7 +219,7 @@ export const Toolbar: React.FC = () => {
 
       <div className="flex flex-col mb-4 w-full px-2">
         {renderTool("line", <Minus size={20} />, "Line (L)")}
-        {renderTool("rectangle", <Square size={20} />, "Rectangle (R)")}
+        {renderTool("rectangle", <Square size={20} />, "Rectangle (U)")}
         {renderTool("ellipse", <Circle size={20} />, "Ellipse (O)")}
       </div>
 
