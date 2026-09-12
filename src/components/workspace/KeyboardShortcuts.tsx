@@ -80,7 +80,6 @@ export const KeyboardShortcuts: React.FC = () => {
           v: "move",
           r: "rotate",
           l: "line",
-          // Note: "r" was previously used for rectangle. Let's remap rectangle to "u"
           u: "rectangle",
           o: "ellipse",
           h: "pan",
