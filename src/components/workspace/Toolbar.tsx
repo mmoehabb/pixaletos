@@ -6,6 +6,7 @@ import {
   MousePointer2,
   Wand2,
   Brush,
+  LassoSelect,
   Move,
   RotateCw,
   ZoomIn,
@@ -97,7 +98,8 @@ export const Toolbar: React.FC = () => {
     if (
       currentTool === "select" ||
       currentTool === "select_brush" ||
-      currentTool === "select_magic_wand"
+      currentTool === "select_magic_wand" ||
+      currentTool === "select_lasso"
     ) {
       toolToActivate = currentTool;
     }
@@ -108,6 +110,9 @@ export const Toolbar: React.FC = () => {
     } else if (toolToActivate === "select_magic_wand") {
       icon = <Wand2 size={20} />;
       label = "Magic Wand Select";
+    } else if (toolToActivate === "select_lasso") {
+      icon = <LassoSelect size={20} />;
+      label = "Lasso Select";
     }
 
     return (
@@ -119,7 +124,8 @@ export const Toolbar: React.FC = () => {
           isActive={
             currentTool === "select" ||
             currentTool === "select_brush" ||
-            currentTool === "select_magic_wand"
+            currentTool === "select_magic_wand" ||
+            currentTool === "select_lasso"
           }
           onClick={() => setTool(toolToActivate)}
           onContextMenu={(e) => {
@@ -158,6 +164,16 @@ export const Toolbar: React.FC = () => {
               }}
             >
               <Wand2 size={16} /> Magic Wand Select
+            </button>
+            <button
+              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-700 ${lastSelectTool === "select_lasso" ? "text-indigo-400" : "text-neutral-200"}`}
+              onClick={() => {
+                setLastSelectTool("select_lasso");
+                setTool("select_lasso");
+                setSelectMenuOpen(false);
+              }}
+            >
+              <LassoSelect size={16} /> Lasso Select
             </button>
           </div>
         )}
