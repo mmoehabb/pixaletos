@@ -9,6 +9,7 @@ import {
 import { flipImage, rotateImage } from "../../utils/transforms";
 import { TransformDialog, type TransformMode } from "./TransformDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
+import { SpritesheetDialog } from "./SpritesheetDialog";
 import type { Command, Layer } from "../../types";
 
 interface MenuItem {
@@ -97,6 +98,7 @@ export function MenuBar() {
     null,
   );
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
+  const [isSpritesheetDialogOpen, setIsSpritesheetDialogOpen] = useState(false);
   const store = useAppStore();
 
   const cloneLayers = (layers: Layer[]) =>
@@ -164,6 +166,10 @@ export function MenuBar() {
       label: "Export as PNG",
       shortcut: "Ctrl+E",
       onClick: () => exportToPNG(store),
+    },
+    {
+      label: "Export Spritesheet...",
+      onClick: () => setIsSpritesheetDialogOpen(true),
     },
   ];
 
@@ -283,6 +289,9 @@ export function MenuBar() {
       )}
       {isNewProjectDialogOpen && (
         <NewProjectDialog onClose={() => setIsNewProjectDialogOpen(false)} />
+      )}
+      {isSpritesheetDialogOpen && (
+        <SpritesheetDialog onClose={() => setIsSpritesheetDialogOpen(false)} />
       )}
     </>
   );
