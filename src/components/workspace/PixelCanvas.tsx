@@ -77,9 +77,11 @@ const CanvasLayer = ({
 const SelectionOverlay = ({
   dimensions,
   selection,
+  zoom,
 }: {
   dimensions: { width: number; height: number };
   selection: Uint8Array | null;
+  zoom: number;
 }) => {
   const draw = useCallback(
     (g: PixiGraphics) => {
@@ -124,8 +126,8 @@ const SelectionOverlay = ({
       }
       g.endFill();
 
-      // Draw borders around selected pixels
-      g.lineStyle(1, 0xffffff, 0.8); // width, color, alpha
+      // Draw borders around selected pixels (1 screen pixel thick)
+      g.lineStyle(1 / zoom, 0xffffff, 0.8);
 
       const isSel = (x: number, y: number) => {
         if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height)
@@ -160,7 +162,7 @@ const SelectionOverlay = ({
         }
       }
     },
-    [dimensions, selection],
+    [dimensions, selection, zoom],
   );
 
   return <pixiGraphics draw={draw} zIndex={1000} />;
@@ -1278,6 +1280,7 @@ export const PixelCanvas: React.FC = () => {
 
               <SelectionOverlay
                 dimensions={dimensions}
+                zoom={zoom}
                 selection={activeSelection || selection}
               />
             </pixiContainer>
