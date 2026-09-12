@@ -1,16 +1,37 @@
 import type { AppState } from "../store";
 import { saveAs } from "file-saver";
 
+const MAX_CANVAS_DIMENSION = 4096;
+const MAX_CANVAS_PIXELS = MAX_CANVAS_DIMENSION * MAX_CANVAS_DIMENSION;
+const MAX_EXPORT_DIMENSION = 16384;
+const MAX_EXPORT_PIXELS = 64 * 1024 * 1024;
+
+function isValidCanvasSize(width: unknown, height: unknown): boolean {
+  return (
+    Number.isInteger(width) &&
+    Number.isInteger(height) &&
+    typeof width === "number" &&
+    typeof height === "number" &&
+    width >= 1 &&
+    height >= 1 &&
+    width <= MAX_CANVAS_DIMENSION &&
+    height <= MAX_CANVAS_DIMENSION &&
+    width * height <= MAX_CANVAS_PIXELS
+  );
+}
+
 // Convert Uint8ClampedArray to Base64 string for JSON serialization
 function uint8ClampedArrayToBase64(arr: Uint8ClampedArray): string {
-  // Convert to standard array or Buffer if in Node. In browser, we can use btoa.
-  // We need to convert it to a string chunk by chunk to avoid maximum call stack size exceeded
-  let binary = "";
-  const len = arr.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(arr[i]);
+  // Encode in chunks: constructing one character at a time is quadratic for
+  // larger canvases, while spreading the entire array can exceed call limits.
+  const chunkSize = 0x8000;
+  const chunks: string[] = [];
+  for (let offset = 0; offset < arr.length; offset += chunkSize) {
+    chunks.push(
+      String.fromCharCode(...arr.subarray(offset, offset + chunkSize)),
+    );
   }
-  return btoa(binary);
+  return btoa(chunks.join(""));
 }
 
 // Convert Base64 string back to Uint8ClampedArray
@@ -52,7 +73,7 @@ export function saveProject(store: AppState) {
 export function loadProject(store: AppState) {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".json";
+  input.accept = ".json,application/json";
   input.onchange = (e) => {
     const target = e.target as HTMLInputElement;
     const file = target.files?.[0];
@@ -69,15 +90,19 @@ export function loadProject(store: AppState) {
           projectData.version !== 1 ||
           !Number.isInteger(projectData.dimensions?.width) ||
           !Number.isInteger(projectData.dimensions?.height) ||
-          projectData.dimensions.width < 1 ||
-          projectData.dimensions.height < 1 ||
-          !Array.isArray(projectData.layers)
+          !isValidCanvasSize(
+            projectData.dimensions.width,
+            projectData.dimensions.height,
+          ) ||
+          !Array.isArray(projectData.layers) ||
+          projectData.layers.length === 0
         ) {
           throw new Error("Invalid project format");
         }
 
         const expectedLength =
           projectData.dimensions.width * projectData.dimensions.height * 4;
+        const layerIds = new Set<string>();
         const deserializedLayers = projectData.layers.map((layer: unknown) => {
           if (!layer || typeof layer !== "object")
             throw new Error("Invalid layer");
@@ -87,16 +112,24 @@ export function loadProject(store: AppState) {
           const data = base64ToUint8ClampedArray(savedLayer.data);
           if (data.length !== expectedLength)
             throw new Error("Layer size does not match canvas");
+          const id =
+            typeof savedLayer.id === "string" && savedLayer.id.length > 0
+              ? savedLayer.id
+              : crypto.randomUUID();
+          if (layerIds.has(id))
+            throw new Error("Layer identifiers must be unique");
+          layerIds.add(id);
+          const opacity =
+            typeof savedLayer.opacity === "number" ? savedLayer.opacity : 1;
+          if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
+            throw new Error("Invalid layer opacity");
+          }
           return {
-            id:
-              typeof savedLayer.id === "string"
-                ? savedLayer.id
-                : crypto.randomUUID(),
+            id,
             name:
               typeof savedLayer.name === "string" ? savedLayer.name : "Layer",
             visible: savedLayer.visible !== false,
-            opacity:
-              typeof savedLayer.opacity === "number" ? savedLayer.opacity : 1,
+            opacity,
             data,
           };
         });
@@ -114,12 +147,17 @@ export function loadProject(store: AppState) {
           },
           projectData.dimensions,
           deserializedLayers,
-          projectData.activeLayerId,
+          layerIds.has(projectData.activeLayerId)
+            ? projectData.activeLayerId
+            : (deserializedLayers[0]?.id ?? null),
         );
       } catch (error) {
         console.error("Failed to load project:", error);
         alert("Failed to load project file.");
       }
+    };
+    reader.onerror = () => {
+      alert("Failed to read project file.");
     };
     reader.readAsText(file);
   };
@@ -138,6 +176,9 @@ export function importPNG(store: AppState) {
     const objectUrl = URL.createObjectURL(file);
     image.onload = () => {
       try {
+        if (!isValidCanvasSize(image.naturalWidth, image.naturalHeight)) {
+          throw new Error("Image dimensions exceed the supported canvas size");
+        }
         const canvas = document.createElement("canvas");
         canvas.width = image.naturalWidth;
         canvas.height = image.naturalHeight;
@@ -186,6 +227,16 @@ export function importPNG(store: AppState) {
 
 export function exportToPNG(store: AppState, scale: number = 1) {
   const { dimensions, layers } = store;
+  if (!Number.isInteger(scale) || scale < 1 || scale > 64) {
+    throw new Error("PNG export scale must be a whole number between 1 and 64");
+  }
+  if (
+    dimensions.width * scale > MAX_EXPORT_DIMENSION ||
+    dimensions.height * scale > MAX_EXPORT_DIMENSION ||
+    dimensions.width * scale * dimensions.height * scale > MAX_EXPORT_PIXELS
+  ) {
+    throw new Error("Scaled PNG dimensions exceed the export limit");
+  }
 
   // Create an offscreen canvas with original dimensions
   const canvas = document.createElement("canvas");
@@ -230,6 +281,7 @@ export function exportToPNG(store: AppState, scale: number = 1) {
     ctx.globalAlpha = layer.opacity;
     ctx.drawImage(tempCanvas, 0, 0);
   }
+  ctx.globalAlpha = 1;
 
   // If scaling is needed (e.g. scale = 4 for nearest-neighbor 4x scaling)
   let finalCanvas = canvas;

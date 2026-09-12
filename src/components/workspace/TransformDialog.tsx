@@ -42,6 +42,11 @@ export function TransformDialog({
       height > 4096
     )
       return;
+    if (
+      mode === "crop" &&
+      (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0)
+    )
+      return;
     const before = {
       dimensions: { ...store.dimensions },
       layers: cloneLayers(store.layers),

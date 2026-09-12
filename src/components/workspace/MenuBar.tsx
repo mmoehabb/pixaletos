@@ -16,6 +16,7 @@ interface MenuItem {
   onClick?: () => void;
   shortcut?: string;
   divider?: boolean;
+  disabled?: boolean;
 }
 
 interface MenuDropdownProps {
@@ -72,11 +73,13 @@ function MenuDropdown({
             return (
               <button
                 key={item.label}
+                disabled={item.disabled}
                 onClick={() => {
-                  if (item.onClick) item.onClick();
+                  if (item.disabled) return;
+                  item.onClick?.();
                   onClose();
                 }}
-                className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-neutral-300 hover:bg-indigo-500 hover:text-white"
+                className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-neutral-300 hover:bg-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-neutral-300"
               >
                 <span>{item.label}</span>
                 {item.shortcut && (
@@ -171,9 +174,9 @@ export function MenuBar() {
     { label: "Undo", shortcut: "Ctrl+Z", onClick: store.undo },
     { label: "Redo", shortcut: "Ctrl+Shift+Z", onClick: store.redo },
     { divider: true },
-    { label: "Cut", shortcut: "Ctrl+X" },
-    { label: "Copy", shortcut: "Ctrl+C" },
-    { label: "Paste", shortcut: "Ctrl+V" },
+    { label: "Cut", shortcut: "Ctrl+X", disabled: true },
+    { label: "Copy", shortcut: "Ctrl+C", disabled: true },
+    { label: "Paste", shortcut: "Ctrl+V", disabled: true },
   ];
 
   const imageItems: MenuItem[] = [
@@ -224,10 +227,10 @@ export function MenuBar() {
 
   const layerItems: MenuItem[] = [
     { label: "New Layer", onClick: store.addLayer },
-    { label: "Duplicate Layer" },
-    { label: "Delete Layer" },
+    { label: "Duplicate Layer", disabled: true },
+    { label: "Delete Layer", disabled: true },
     { divider: true },
-    { label: "Merge Down" },
+    { label: "Merge Down", disabled: true },
   ];
 
   const viewItems: MenuItem[] = [
@@ -243,13 +246,13 @@ export function MenuBar() {
     },
     { label: "Reset Zoom", onClick: () => store.setZoom(1) },
     { divider: true },
-    { label: "Toggle Grid" },
+    { label: "Toggle Grid", disabled: true },
   ];
 
   const aiItems: MenuItem[] = [
-    { label: "Generate..." },
-    { label: "Edit Selection..." },
-    { label: "Settings..." },
+    { label: "Generate...", disabled: true },
+    { label: "Edit Selection...", disabled: true },
+    { label: "Settings...", disabled: true },
   ];
 
   const menus = [
