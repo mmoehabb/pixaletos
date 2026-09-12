@@ -1,6 +1,12 @@
 import React, { useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
+import {
+  exportToPNG,
+  importPNG,
+  loadProject,
+  saveProject,
+} from "../../utils/project";
 
 export const KeyboardShortcuts: React.FC = () => {
   const { setTool, undo, redo, setZoom, zoom, setSelection } = useAppStore();
@@ -26,6 +32,30 @@ export const KeyboardShortcuts: React.FC = () => {
           } else {
             undo();
           }
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key.toLowerCase() === "s") {
+          saveProject(useAppStore.getState());
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key.toLowerCase() === "o") {
+          loadProject(useAppStore.getState());
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key.toLowerCase() === "i") {
+          importPNG(useAppStore.getState());
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key.toLowerCase() === "e") {
+          exportToPNG(useAppStore.getState());
           e.preventDefault();
           return;
         }
