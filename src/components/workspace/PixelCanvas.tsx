@@ -697,6 +697,9 @@ export const PixelCanvas: React.FC = () => {
   const movedSelectionData = useRef<Uint8Array | null>(null); // Store original selected pixels before move
   const originalLayerData = useRef<Uint8ClampedArray | null>(null);
 
+  // Lasso Tool State
+  const lassoPoints = useRef<{ x: number; y: number }[]>([]);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button === 1 || currentTool === "pan") {
       setIsPanning(true);
@@ -732,14 +735,17 @@ export const PixelCanvas: React.FC = () => {
     if (
       currentTool === "select" ||
       currentTool === "select_brush" ||
-      currentTool === "select_magic_wand"
+      currentTool === "select_magic_wand" ||
+      currentTool === "select_lasso"
     ) {
       setIsDrawing(true);
       startDrawPos.current = { x, y };
       lastDrawPos.current = { x, y };
       e.currentTarget.setPointerCapture(e.pointerId);
 
-      if (currentTool === "select_brush") {
+      if (currentTool === "select_lasso") {
+        lassoPoints.current = [{ x, y }];
+      } else if (currentTool === "select_brush") {
         const newSelection = new Uint8Array(
           dimensions.width * dimensions.height,
         );
@@ -852,7 +858,8 @@ export const PixelCanvas: React.FC = () => {
     if (
       currentTool === "select" ||
       currentTool === "select_brush" ||
-      currentTool === "select_magic_wand"
+      currentTool === "select_magic_wand" ||
+      currentTool === "select_lasso"
     ) {
       if (currentTool === "select") {
         lastDrawPos.current = { x, y };
@@ -910,6 +917,26 @@ export const PixelCanvas: React.FC = () => {
           lastDrawPos.current = { x, y };
           setActiveSelection(newSelection);
         }
+      } else if (currentTool === "select_lasso") {
+        lassoPoints.current.push({ x, y });
+        lastDrawPos.current = { x, y };
+
+        // Draw lasso preview line
+        previewDataRef.current.fill(0);
+        for (let i = 1; i < lassoPoints.current.length; i++) {
+          const p1 = lassoPoints.current[i - 1];
+          const p2 = lassoPoints.current[i];
+          drawLine(
+            previewDataRef.current,
+            p1.x,
+            p1.y,
+            p2.x,
+            p2.y,
+            { r: 128, g: 128, b: 255, a: 255 },
+            false,
+          );
+        }
+        setPreviewDataVersion((v) => v + 1);
       }
       return;
     }
@@ -1026,7 +1053,8 @@ export const PixelCanvas: React.FC = () => {
       if (
         (currentTool === "select" ||
           currentTool === "select_brush" ||
-          currentTool === "select_magic_wand") &&
+          currentTool === "select_magic_wand" ||
+          currentTool === "select_lasso") &&
         startDrawPos.current &&
         lastDrawPos.current
       ) {
@@ -1070,10 +1098,72 @@ export const PixelCanvas: React.FC = () => {
           setSelection(newSelection);
         } else if (
           currentTool === "select_brush" ||
-          currentTool === "select_magic_wand"
+          currentTool === "select_magic_wand" ||
+          currentTool === "select_lasso"
         ) {
-          if (activeSelection) {
-            let finalSelection = new Uint8Array(activeSelection);
+          let selectionToApply = activeSelection;
+
+          if (
+            currentTool === "select_lasso" &&
+            lassoPoints.current.length > 2
+          ) {
+            const newSelection = new Uint8Array(
+              dimensions.width * dimensions.height,
+            );
+
+            // Bounding box optimization
+            let minX = dimensions.width,
+              minY = dimensions.height,
+              maxX = 0,
+              maxY = 0;
+            for (const p of lassoPoints.current) {
+              if (p.x < minX) minX = p.x;
+              if (p.y < minY) minY = p.y;
+              if (p.x > maxX) maxX = p.x;
+              if (p.y > maxY) maxY = p.y;
+            }
+            minX = Math.max(0, minX);
+            minY = Math.max(0, minY);
+            maxX = Math.min(dimensions.width - 1, maxX);
+            maxY = Math.min(dimensions.height - 1, maxY);
+
+            // Point-in-polygon algorithm
+            for (let y = minY; y <= maxY; y++) {
+              for (let x = minX; x <= maxX; x++) {
+                let inside = false;
+                for (
+                  let i = 0, j = lassoPoints.current.length - 1;
+                  i < lassoPoints.current.length;
+                  j = i++
+                ) {
+                  const xi = lassoPoints.current[i].x,
+                    yi = lassoPoints.current[i].y;
+                  const xj = lassoPoints.current[j].x,
+                    yj = lassoPoints.current[j].y;
+
+                  const intersect =
+                    yi > y !== yj > y &&
+                    x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+                  if (intersect) inside = !inside;
+                }
+                if (inside) {
+                  newSelection[y * dimensions.width + x] = 1;
+                }
+              }
+            }
+            selectionToApply = newSelection;
+            previewDataRef.current.fill(0);
+            setPreviewDataVersion((v) => v + 1);
+            lassoPoints.current = [];
+          } else if (currentTool === "select_lasso") {
+            previewDataRef.current.fill(0);
+            setPreviewDataVersion((v) => v + 1);
+            lassoPoints.current = [];
+            selectionToApply = null;
+          }
+
+          if (selectionToApply) {
+            let finalSelection = new Uint8Array(selectionToApply);
             if (e.shiftKey && selection) {
               for (let i = 0; i < finalSelection.length; i++)
                 finalSelection[i] = finalSelection[i] || selection[i];
