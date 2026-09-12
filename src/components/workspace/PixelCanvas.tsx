@@ -901,7 +901,11 @@ export const PixelCanvas: React.FC = () => {
         }
       }
 
-      if (currentTool === "move" || isDraggingRotateHandle.current || (currentTool === "rotate" && !isDraggingPivot.current)) {
+      if (
+        currentTool === "move" ||
+        isDraggingRotateHandle.current ||
+        (currentTool === "rotate" && !isDraggingPivot.current)
+      ) {
         // Save original layer state and extract the selection (if not already done above)
         if (!originalLayerData.current) {
           originalLayerData.current = new Uint8ClampedArray(layer.data);
@@ -1127,7 +1131,12 @@ export const PixelCanvas: React.FC = () => {
         return;
       }
 
-      if (currentTool === "move" || (currentTool === "rotate" && !isDraggingPivot.current && !isDraggingRotateHandle.current)) {
+      if (
+        currentTool === "move" ||
+        (currentTool === "rotate" &&
+          !isDraggingPivot.current &&
+          !isDraggingRotateHandle.current)
+      ) {
         lastDrawPos.current = { x, y };
         const dx = x - startDrawPos.current.x;
         const dy = y - startDrawPos.current.y;
