@@ -320,10 +320,16 @@ export const PixelCanvas: React.FC = () => {
     y: number,
     color: { r: number; g: number; b: number; a: number },
     trackDiff: boolean = true,
+    ignoreSelection: boolean = false,
   ) => {
     if (x < 0 || x >= dimensions.width || y < 0 || y >= dimensions.height)
       return;
-    if (hasValidSelection && !selection[y * dimensions.width + x]) return;
+    if (
+      !ignoreSelection &&
+      hasValidSelection &&
+      !selection[y * dimensions.width + x]
+    )
+      return;
 
     const i = (y * dimensions.width + x) * 4;
     const oldR = data[i],
@@ -364,6 +370,7 @@ export const PixelCanvas: React.FC = () => {
     y1: number,
     color: { r: number; g: number; b: number; a: number },
     trackDiff: boolean = true,
+    ignoreSelection: boolean = false,
   ) => {
     const dx = Math.abs(x1 - x0),
       dy = Math.abs(y1 - y0);
@@ -371,7 +378,7 @@ export const PixelCanvas: React.FC = () => {
       sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;
     while (true) {
-      drawPixel(data, x0, y0, color, trackDiff);
+      drawPixel(data, x0, y0, color, trackDiff, ignoreSelection);
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
       if (e2 > -dy) {
@@ -934,6 +941,7 @@ export const PixelCanvas: React.FC = () => {
             p2.y,
             { r: 128, g: 128, b: 255, a: 255 },
             false,
+            true, // ignore selection when drawing the preview
           );
         }
         setPreviewDataVersion((v) => v + 1);
