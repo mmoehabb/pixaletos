@@ -78,8 +78,10 @@ export const KeyboardShortcuts: React.FC = () => {
           i: "eyedropper",
           m: "select",
           v: "move",
+          r: "rotate",
           l: "line",
-          r: "rectangle",
+          // Note: "r" was previously used for rectangle. Let's remap rectangle to "u"
+          u: "rectangle",
           o: "ellipse",
           h: "pan",
           z: "zoom",

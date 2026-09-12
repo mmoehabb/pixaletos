@@ -14,7 +14,7 @@ import {
   BufferImageSource,
 } from "pixi.js";
 import { useAppStore } from "../../store";
-import type { Command } from "../../types";
+import type { Command, Tool } from "../../types";
 
 extend({ Container, Sprite, Graphics: PixiGraphics });
 
@@ -78,10 +78,14 @@ const SelectionOverlay = ({
   dimensions,
   selection,
   zoom,
+  currentTool,
+  rotatePivot,
 }: {
   dimensions: { width: number; height: number };
   selection: Uint8Array | null;
   zoom: number;
+  currentTool: Tool;
+  rotatePivot: { x: number; y: number } | null;
 }) => {
   const draw = useCallback(
     (g: PixiGraphics) => {
@@ -161,8 +165,50 @@ const SelectionOverlay = ({
           }
         }
       }
+
+      if (currentTool === "rotate") {
+        let minX = dimensions.width,
+          minY = dimensions.height,
+          maxX = -1,
+          maxY = -1;
+        for (let py = 0; py < dimensions.height; py++) {
+          for (let px = 0; px < dimensions.width; px++) {
+            if (selection[py * dimensions.width + px]) {
+              if (px < minX) minX = px;
+              if (py < minY) minY = py;
+              if (px > maxX) maxX = px;
+              if (py > maxY) maxY = py;
+            }
+          }
+        }
+
+        if (minX <= maxX && minY <= maxY) {
+          // Draw bounding box
+          g.lineStyle(1 / zoom, 0x00ff00, 0.8);
+          g.drawRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
+
+          // Draw rotation handle
+          const handleX = maxX + 0.5; // Offset to edge
+          const handleY = minY - 0.5;
+          g.beginFill(0xffffff);
+          g.lineStyle(1 / zoom, 0x00ff00, 1);
+          g.drawCircle(handleX, handleY, 3 / zoom);
+          g.endFill();
+
+          // Draw pivot
+          const pivot = rotatePivot || {
+            x: (minX + maxX) / 2,
+            y: (minY + maxY) / 2,
+          };
+          g.lineStyle(1.5 / zoom, 0xff0000, 1);
+          g.moveTo(pivot.x - 3 / zoom, pivot.y);
+          g.lineTo(pivot.x + 3 / zoom, pivot.y);
+          g.moveTo(pivot.x, pivot.y - 3 / zoom);
+          g.lineTo(pivot.x, pivot.y + 3 / zoom);
+        }
+      }
     },
-    [dimensions, selection, zoom],
+    [dimensions, selection, zoom, currentTool, rotatePivot],
   );
 
   return <pixiGraphics draw={draw} zIndex={1000} />;
@@ -693,9 +739,15 @@ export const PixelCanvas: React.FC = () => {
     setPreviewDataVersion((v) => v + 1);
   };
 
-  // Move Tool state
-  const movedSelectionData = useRef<Uint8Array | null>(null); // Store original selected pixels before move
+  // Move / Rotate Tool state
+  const movedSelectionData = useRef<Uint8Array | null>(null); // Store original selected pixels before move/rotate
   const originalLayerData = useRef<Uint8ClampedArray | null>(null);
+
+  // Rotate Tool state
+  const rotatePivot = useRef<{ x: number; y: number } | null>(null);
+  const rotateAngle = useRef<number>(0); // in radians
+  const isDraggingRotateHandle = useRef<boolean>(false);
+  const isDraggingPivot = useRef<boolean>(false);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button === 1 || currentTool === "pan") {
@@ -767,42 +819,124 @@ export const PixelCanvas: React.FC = () => {
     // cancelled interaction from leaking pixels into the following command.
     strokeDiff.current.clear();
 
-    if (currentTool === "move" && selection) {
+    if ((currentTool === "move" || currentTool === "rotate") && selection) {
       setIsDrawing(true);
       startDrawPos.current = { x, y };
       lastDrawPos.current = { x, y };
       e.currentTarget.setPointerCapture(e.pointerId);
 
-      // Save original layer state and extract the selection
-      originalLayerData.current = new Uint8ClampedArray(layer.data);
-      movedSelectionData.current = new Uint8Array(
-        dimensions.width * dimensions.height,
-      );
-      movedSelectionData.current.set(selection);
-
-      // Erase selected pixels from the active layer's current state temporarily
-      for (let i = 0; i < selection.length; i++) {
-        if (selection[i]) {
-          const pxIdx = i * 4;
-          // record diff for clearing
-          if (!strokeDiff.current.has(pxIdx)) {
-            strokeDiff.current.set(pxIdx, {
-              oldColor: {
-                r: layer.data[pxIdx],
-                g: layer.data[pxIdx + 1],
-                b: layer.data[pxIdx + 2],
-                a: layer.data[pxIdx + 3],
-              },
-              newColor: { r: 0, g: 0, b: 0, a: 0 },
-            });
+      if (currentTool === "rotate") {
+        // Calculate bounding box for rotation pivot if not set
+        if (!rotatePivot.current) {
+          let minX = dimensions.width,
+            minY = dimensions.height,
+            maxX = -1,
+            maxY = -1;
+          for (let py = 0; py < dimensions.height; py++) {
+            for (let px = 0; px < dimensions.width; px++) {
+              if (selection[py * dimensions.width + px]) {
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+              }
+            }
           }
-          layer.data[pxIdx] = 0;
-          layer.data[pxIdx + 1] = 0;
-          layer.data[pxIdx + 2] = 0;
-          layer.data[pxIdx + 3] = 0;
+          if (minX <= maxX && minY <= maxY) {
+            rotatePivot.current = {
+              x: Math.floor((minX + maxX) / 2),
+              y: Math.floor((minY + maxY) / 2),
+            };
+          } else {
+            rotatePivot.current = { x: 0, y: 0 };
+          }
+        }
+
+        rotateAngle.current = 0;
+        isDraggingRotateHandle.current = false;
+        isDraggingPivot.current = false;
+
+        // Determine if clicking on the pivot handle or the rotate handle
+        // These coords should correspond to how they are drawn in SelectionOverlay
+        // Pivot handle is at rotatePivot.current
+        const pivotDx = x - rotatePivot.current.x;
+        const pivotDy = y - rotatePivot.current.y;
+        if (Math.sqrt(pivotDx * pivotDx + pivotDy * pivotDy) <= 2) {
+          // Allow some slack
+          isDraggingPivot.current = true;
+        } else {
+          // Find bounding box for rotation handle
+          let minX = dimensions.width,
+            minY = dimensions.height,
+            maxX = -1,
+            maxY = -1;
+          for (let py = 0; py < dimensions.height; py++) {
+            for (let px = 0; px < dimensions.width; px++) {
+              if (selection[py * dimensions.width + px]) {
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+              }
+            }
+          }
+          const handleX = maxX;
+          const handleY = minY;
+          const handleDx = x - handleX;
+          const handleDy = y - handleY;
+          if (Math.sqrt(handleDx * handleDx + handleDy * handleDy) <= 3) {
+            isDraggingRotateHandle.current = true;
+          } else {
+            // Also allow dragging anywhere else to just move it
+            originalLayerData.current = new Uint8ClampedArray(layer.data);
+            movedSelectionData.current = new Uint8Array(
+              dimensions.width * dimensions.height,
+            );
+            movedSelectionData.current.set(selection);
+
+            // Revert back to move tool logic if not interacting with handles directly
+            isDraggingRotateHandle.current = false;
+            // Hacky but works to allow moving while rotate tool is active but not clicking handle
+          }
         }
       }
-      updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
+
+      if (currentTool === "move" || isDraggingRotateHandle.current || (currentTool === "rotate" && !isDraggingPivot.current)) {
+        // Save original layer state and extract the selection (if not already done above)
+        if (!originalLayerData.current) {
+          originalLayerData.current = new Uint8ClampedArray(layer.data);
+        }
+        if (!movedSelectionData.current) {
+          movedSelectionData.current = new Uint8Array(
+            dimensions.width * dimensions.height,
+          );
+          movedSelectionData.current.set(selection);
+        }
+
+        // Erase selected pixels from the active layer's current state temporarily
+        for (let i = 0; i < selection.length; i++) {
+          if (selection[i]) {
+            const pxIdx = i * 4;
+            // record diff for clearing
+            if (!strokeDiff.current.has(pxIdx)) {
+              strokeDiff.current.set(pxIdx, {
+                oldColor: {
+                  r: layer.data[pxIdx],
+                  g: layer.data[pxIdx + 1],
+                  b: layer.data[pxIdx + 2],
+                  a: layer.data[pxIdx + 3],
+                },
+                newColor: { r: 0, g: 0, b: 0, a: 0 },
+              });
+            }
+            layer.data[pxIdx] = 0;
+            layer.data[pxIdx + 1] = 0;
+            layer.data[pxIdx + 2] = 0;
+            layer.data[pxIdx + 3] = 0;
+          }
+        }
+        updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
+      }
       return;
     }
 
@@ -919,47 +1053,118 @@ export const PixelCanvas: React.FC = () => {
     if (!layer || !layer.visible) return;
 
     if (
-      currentTool === "move" &&
+      (currentTool === "move" || currentTool === "rotate") &&
       selection &&
       originalLayerData.current &&
       startDrawPos.current
     ) {
-      lastDrawPos.current = { x, y };
-      const dx = x - startDrawPos.current.x;
-      const dy = y - startDrawPos.current.y;
+      if (currentTool === "rotate") {
+        if (isDraggingPivot.current) {
+          rotatePivot.current = { x, y };
+          // Force a re-render to update the overlay
+          setPreviewDataVersion((v) => v + 1);
+          return;
+        }
 
-      // Draw the moved selection to previewData
-      previewDataRef.current.fill(0);
-      for (let py = 0; py < dimensions.height; py++) {
-        for (let px = 0; px < dimensions.width; px++) {
-          if (
-            movedSelectionData.current &&
-            movedSelectionData.current[py * dimensions.width + px]
-          ) {
-            const srcIdx = (py * dimensions.width + px) * 4;
-            const destX = px + dx;
-            const destY = py + dy;
+        if (isDraggingRotateHandle.current && rotatePivot.current) {
+          lastDrawPos.current = { x, y };
+          const pivot = rotatePivot.current;
+          const startAngle = Math.atan2(
+            startDrawPos.current.y - pivot.y,
+            startDrawPos.current.x - pivot.x,
+          );
+          const currentAngle = Math.atan2(y - pivot.y, x - pivot.x);
+          rotateAngle.current = currentAngle - startAngle;
+
+          const cosA = Math.cos(rotateAngle.current);
+          const sinA = Math.sin(rotateAngle.current);
+
+          previewDataRef.current.fill(0);
+
+          for (let py = 0; py < dimensions.height; py++) {
+            for (let px = 0; px < dimensions.width; px++) {
+              if (
+                movedSelectionData.current &&
+                movedSelectionData.current[py * dimensions.width + px]
+              ) {
+                const srcIdx = (py * dimensions.width + px) * 4;
+
+                // Relative to pivot
+                const relX = px - pivot.x;
+                const relY = py - pivot.y;
+
+                // Rotate
+                const rotX = Math.round(relX * cosA - relY * sinA);
+                const rotY = Math.round(relX * sinA + relY * cosA);
+
+                // Back to absolute
+                const destX = rotX + pivot.x;
+                const destY = rotY + pivot.y;
+
+                if (
+                  destX >= 0 &&
+                  destX < dimensions.width &&
+                  destY >= 0 &&
+                  destY < dimensions.height
+                ) {
+                  const destIdx = (destY * dimensions.width + destX) * 4;
+                  // Handle nearest neighbor overwrites by simply assigning.
+                  // For a real robust rotation, you might reverse map dest->src to avoid holes.
+                  previewDataRef.current[destIdx] =
+                    originalLayerData.current[srcIdx];
+                  previewDataRef.current[destIdx + 1] =
+                    originalLayerData.current[srcIdx + 1];
+                  previewDataRef.current[destIdx + 2] =
+                    originalLayerData.current[srcIdx + 2];
+                  previewDataRef.current[destIdx + 3] =
+                    originalLayerData.current[srcIdx + 3];
+                }
+              }
+            }
+          }
+          setPreviewDataVersion((v) => v + 1);
+        }
+        return;
+      }
+
+      if (currentTool === "move" || (currentTool === "rotate" && !isDraggingPivot.current && !isDraggingRotateHandle.current)) {
+        lastDrawPos.current = { x, y };
+        const dx = x - startDrawPos.current.x;
+        const dy = y - startDrawPos.current.y;
+
+        // Draw the moved selection to previewData
+        previewDataRef.current.fill(0);
+        for (let py = 0; py < dimensions.height; py++) {
+          for (let px = 0; px < dimensions.width; px++) {
             if (
-              destX >= 0 &&
-              destX < dimensions.width &&
-              destY >= 0 &&
-              destY < dimensions.height
+              movedSelectionData.current &&
+              movedSelectionData.current[py * dimensions.width + px]
             ) {
-              const destIdx = (destY * dimensions.width + destX) * 4;
-              previewDataRef.current[destIdx] =
-                originalLayerData.current[srcIdx];
-              previewDataRef.current[destIdx + 1] =
-                originalLayerData.current[srcIdx + 1];
-              previewDataRef.current[destIdx + 2] =
-                originalLayerData.current[srcIdx + 2];
-              previewDataRef.current[destIdx + 3] =
-                originalLayerData.current[srcIdx + 3];
+              const srcIdx = (py * dimensions.width + px) * 4;
+              const destX = px + dx;
+              const destY = py + dy;
+              if (
+                destX >= 0 &&
+                destX < dimensions.width &&
+                destY >= 0 &&
+                destY < dimensions.height
+              ) {
+                const destIdx = (destY * dimensions.width + destX) * 4;
+                previewDataRef.current[destIdx] =
+                  originalLayerData.current[srcIdx];
+                previewDataRef.current[destIdx + 1] =
+                  originalLayerData.current[srcIdx + 1];
+                previewDataRef.current[destIdx + 2] =
+                  originalLayerData.current[srcIdx + 2];
+                previewDataRef.current[destIdx + 3] =
+                  originalLayerData.current[srcIdx + 3];
+              }
             }
           }
         }
+        setPreviewDataVersion((v) => v + 1);
+        return;
       }
-      setPreviewDataVersion((v) => v + 1);
-      return;
     }
 
     const color =
@@ -1092,16 +1297,126 @@ export const PixelCanvas: React.FC = () => {
       if (!activeLayerId) return;
 
       if (
-        currentTool === "move" &&
+        (currentTool === "move" || currentTool === "rotate") &&
         selection &&
         startDrawPos.current &&
         lastDrawPos.current &&
         originalLayerData.current
       ) {
+        const layer = layers.find((l) => l.id === activeLayerId);
+
+        if (currentTool === "rotate") {
+          isDraggingPivot.current = false;
+          // Note: if user dragged but not via rotate handle or pivot, it will behave as a move
+          // and fall through to the move tool block below, except we need to let it.
+          // Let's add a check if they were dragging the handle.
+          if (isDraggingRotateHandle.current) {
+            isDraggingRotateHandle.current = false;
+            if (layer) {
+              if (rotateAngle.current === 0) {
+                updateLayerData(
+                  activeLayerId,
+                  new Uint8ClampedArray(originalLayerData.current),
+                );
+                strokeDiff.current.clear();
+                originalLayerData.current = null;
+                movedSelectionData.current = null;
+                return;
+              }
+
+              // Apply preview data to layer
+              for (let i = 0; i < previewDataRef.current.length; i += 4) {
+                if (previewDataRef.current[i + 3] > 0) {
+                  // If preview has pixel
+                  const pxIdx = i;
+                  // Track new pixel
+                  if (!strokeDiff.current.has(pxIdx)) {
+                    strokeDiff.current.set(pxIdx, {
+                      oldColor: {
+                        r: layer.data[pxIdx],
+                        g: layer.data[pxIdx + 1],
+                        b: layer.data[pxIdx + 2],
+                        a: layer.data[pxIdx + 3],
+                      },
+                      newColor: {
+                        r: previewDataRef.current[pxIdx],
+                        g: previewDataRef.current[pxIdx + 1],
+                        b: previewDataRef.current[pxIdx + 2],
+                        a: previewDataRef.current[pxIdx + 3],
+                      },
+                    });
+                  } else {
+                    strokeDiff.current.get(pxIdx)!.newColor = {
+                      r: previewDataRef.current[pxIdx],
+                      g: previewDataRef.current[pxIdx + 1],
+                      b: previewDataRef.current[pxIdx + 2],
+                      a: previewDataRef.current[pxIdx + 3],
+                    };
+                  }
+                  layer.data[pxIdx] = previewDataRef.current[pxIdx];
+                  layer.data[pxIdx + 1] = previewDataRef.current[pxIdx + 1];
+                  layer.data[pxIdx + 2] = previewDataRef.current[pxIdx + 2];
+                  layer.data[pxIdx + 3] = previewDataRef.current[pxIdx + 3];
+                }
+              }
+
+              // Rotate the selection bits
+              const newSelection = new Uint8Array(
+                dimensions.width * dimensions.height,
+              );
+              const cosA = Math.cos(rotateAngle.current);
+              const sinA = Math.sin(rotateAngle.current);
+              const pivot = rotatePivot.current;
+
+              if (pivot) {
+                for (let py = 0; py < dimensions.height; py++) {
+                  for (let px = 0; px < dimensions.width; px++) {
+                    if (
+                      movedSelectionData.current &&
+                      movedSelectionData.current[py * dimensions.width + px]
+                    ) {
+                      // Relative to pivot
+                      const relX = px - pivot.x;
+                      const relY = py - pivot.y;
+
+                      // Rotate
+                      const rotX = Math.round(relX * cosA - relY * sinA);
+                      const rotY = Math.round(relX * sinA + relY * cosA);
+
+                      // Back to absolute
+                      const destX = rotX + pivot.x;
+                      const destY = rotY + pivot.y;
+                      if (
+                        destX >= 0 &&
+                        destX < dimensions.width &&
+                        destY >= 0 &&
+                        destY < dimensions.height
+                      ) {
+                        newSelection[destY * dimensions.width + destX] = 1;
+                      }
+                    }
+                  }
+                }
+                setSelection(newSelection);
+              }
+
+              updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
+              const diffEntries = Array.from(strokeDiff.current.entries());
+              commitDrawing(activeLayerId, diffEntries);
+              strokeDiff.current.clear();
+              originalLayerData.current = null;
+              movedSelectionData.current = null;
+
+              previewDataRef.current.fill(0);
+              setPreviewDataVersion((v) => v + 1);
+            }
+            return;
+          }
+        }
+
         const dx = lastDrawPos.current.x - startDrawPos.current.x;
         const dy = lastDrawPos.current.y - startDrawPos.current.y;
 
-        const layer = layers.find((l) => l.id === activeLayerId);
         if (layer) {
           // Clicking a selection without dragging must not clear its pixels.
           if (dx === 0 && dy === 0) {
@@ -1282,6 +1597,8 @@ export const PixelCanvas: React.FC = () => {
                 dimensions={dimensions}
                 zoom={zoom}
                 selection={activeSelection || selection}
+                currentTool={currentTool}
+                rotatePivot={rotatePivot.current}
               />
             </pixiContainer>
           </Application>

@@ -34,6 +34,7 @@ export type Tool =
   | "select_brush"
   | "select_magic_wand"
   | "move"
+  | "rotate"
   | "pan"
   | "zoom";
 
