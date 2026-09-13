@@ -53,3 +53,4 @@
 - [ ] Provide customizable keyboard shortcuts
 - [ ] Optimize rendering and application performance
 - [ ] Handle offline behaviors and error states smoothly
+- Fix Undo/Redo state desync when undoing a global transform after switching keyframes

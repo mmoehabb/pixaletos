@@ -1,3 +1,4 @@
+import { useAppStore } from "../store";
 import type { AppState } from "../store";
 import { saveAs } from "file-saver";
 
@@ -46,20 +47,27 @@ function base64ToUint8ClampedArray(base64: string): Uint8ClampedArray {
 }
 
 export function saveProject(store: AppState) {
-  const serializedLayers = store.layers.map((layer) => ({
-    ...layer,
-    data: uint8ClampedArrayToBase64(layer.data),
+  store.updateCurrentKeyframe();
+  const freshStore = useAppStore.getState();
+
+  const serializedKeyframes = freshStore.keyframes.map((kf) => ({
+    id: kf.id,
+    layers: kf.layers.map((layer) => ({
+      ...layer,
+      data: uint8ClampedArrayToBase64(layer.data),
+    })),
   }));
 
   const projectData = {
     version: 1,
     metadata: {
-      ...store.metadata,
+      ...freshStore.metadata,
       updatedAt: new Date().toISOString(),
     },
-    dimensions: store.dimensions,
-    layers: serializedLayers,
-    activeLayerId: store.activeLayerId,
+    dimensions: freshStore.dimensions,
+    keyframes: serializedKeyframes,
+    activeLayerId: freshStore.activeLayerId,
+    fps: freshStore.fps,
   };
 
   const blob = new Blob([JSON.stringify(projectData, null, 2)], {
@@ -94,8 +102,8 @@ export function loadProject(store: AppState) {
             projectData.dimensions.width,
             projectData.dimensions.height,
           ) ||
-          !Array.isArray(projectData.layers) ||
-          projectData.layers.length === 0
+          (!Array.isArray(projectData.layers) &&
+            !Array.isArray(projectData.keyframes))
         ) {
           throw new Error("Invalid project format");
         }
@@ -103,36 +111,73 @@ export function loadProject(store: AppState) {
         const expectedLength =
           projectData.dimensions.width * projectData.dimensions.height * 4;
         const layerIds = new Set<string>();
-        const deserializedLayers = projectData.layers.map((layer: unknown) => {
-          if (!layer || typeof layer !== "object")
-            throw new Error("Invalid layer");
-          const savedLayer = layer as Record<string, unknown>;
-          if (typeof savedLayer.data !== "string")
-            throw new Error("Invalid layer data");
-          const data = base64ToUint8ClampedArray(savedLayer.data);
-          if (data.length !== expectedLength)
-            throw new Error("Layer size does not match canvas");
-          const id =
-            typeof savedLayer.id === "string" && savedLayer.id.length > 0
-              ? savedLayer.id
-              : crypto.randomUUID();
-          if (layerIds.has(id))
-            throw new Error("Layer identifiers must be unique");
-          layerIds.add(id);
-          const opacity =
-            typeof savedLayer.opacity === "number" ? savedLayer.opacity : 1;
-          if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
-            throw new Error("Invalid layer opacity");
-          }
-          return {
-            id,
-            name:
-              typeof savedLayer.name === "string" ? savedLayer.name : "Layer",
-            visible: savedLayer.visible !== false,
-            opacity,
-            data,
-          };
-        });
+
+        // Handle backwards compatibility where we only had layers
+        let deserializedKeyframes: any[] = [];
+        if (Array.isArray(projectData.keyframes)) {
+          deserializedKeyframes = projectData.keyframes.map(
+            (kf: Record<string, unknown>) => {
+              if (!kf || typeof kf !== "object")
+                throw new Error("Invalid keyframe");
+              const kfLayers = Array.isArray(kf.layers) ? kf.layers : [];
+              return {
+                id: String(kf.id || crypto.randomUUID()),
+                layers: kfLayers.map((layer: unknown) => {
+                  if (!layer || typeof layer !== "object")
+                    throw new Error("Invalid layer in keyframe");
+                  const savedLayer = layer as Record<string, unknown>;
+                  if (typeof savedLayer.data !== "string")
+                    throw new Error("Invalid layer data in keyframe");
+                  const data = base64ToUint8ClampedArray(savedLayer.data);
+                  if (data.length !== expectedLength)
+                    throw new Error("Layer data size mismatch in keyframe");
+                  return { ...savedLayer, data };
+                }),
+              };
+            },
+          );
+        }
+
+        let deserializedLayers: any[] = [];
+        if (Array.isArray(projectData.layers)) {
+          deserializedLayers = projectData.layers.map((layer: unknown) => {
+            if (!layer || typeof layer !== "object")
+              throw new Error("Invalid layer");
+            const savedLayer = layer as Record<string, unknown>;
+            if (typeof savedLayer.data !== "string")
+              throw new Error("Invalid layer data");
+            const data = base64ToUint8ClampedArray(savedLayer.data);
+            if (data.length !== expectedLength)
+              throw new Error("Layer data size mismatch");
+            layerIds.add(String(savedLayer.id));
+            return { ...savedLayer, data };
+          });
+        }
+
+        let finalKeyframes = deserializedKeyframes;
+        let finalLayers = deserializedLayers;
+
+        if (finalKeyframes.length === 0 && finalLayers.length > 0) {
+          finalKeyframes = [
+            {
+              id: crypto.randomUUID(),
+              layers: finalLayers.map((l) => ({
+                ...l,
+                data: new Uint8ClampedArray(l.data as Uint8ClampedArray),
+              })),
+            },
+          ];
+        } else if (finalKeyframes.length > 0 && finalLayers.length === 0) {
+          finalLayers = finalKeyframes[0].layers.map(
+            (l: Record<string, unknown>) => ({
+              ...l,
+              data: new Uint8ClampedArray(l.data as Uint8ClampedArray),
+            }),
+          );
+          finalKeyframes[0].layers.forEach((l: Record<string, unknown>) =>
+            layerIds.add(String(l.id)),
+          );
+        }
 
         store.loadProjectState(
           {
@@ -146,10 +191,12 @@ export function loadProject(store: AppState) {
               projectData.metadata?.updatedAt ?? new Date().toISOString(),
           },
           projectData.dimensions,
-          deserializedLayers,
+          finalLayers,
+          finalKeyframes,
           layerIds.has(projectData.activeLayerId)
             ? projectData.activeLayerId
-            : (deserializedLayers[0]?.id ?? null),
+            : (finalLayers[0]?.id ?? null),
+          projectData.fps || 12,
         );
       } catch (error) {
         console.error("Failed to load project:", error);
@@ -191,6 +238,15 @@ export function importPNG(store: AppState) {
         );
         const now = new Date().toISOString();
         const layerId = crypto.randomUUID();
+        const newLayers = [
+          {
+            id: layerId,
+            name: "Imported image",
+            visible: true,
+            opacity: 1,
+            data,
+          },
+        ];
         store.loadProjectState(
           {
             name: file.name.replace(/\.png$/i, "") || "Imported image",
@@ -198,16 +254,18 @@ export function importPNG(store: AppState) {
             updatedAt: now,
           },
           { width: canvas.width, height: canvas.height },
+          newLayers,
           [
             {
-              id: layerId,
-              name: "Imported image",
-              visible: true,
-              opacity: 1,
-              data,
+              id: crypto.randomUUID(),
+              layers: newLayers.map((l) => ({
+                ...l,
+                data: new Uint8ClampedArray(l.data as Uint8ClampedArray),
+              })),
             },
           ],
           layerId,
+          12,
         );
       } catch (error) {
         console.error("Failed to import PNG:", error);
@@ -226,7 +284,8 @@ export function importPNG(store: AppState) {
 }
 
 export function exportAnimationSpritesheet(store: AppState) {
-  const { dimensions, keyframes } = store;
+  store.updateCurrentKeyframe();
+  const { dimensions, keyframes } = useAppStore.getState();
   if (!keyframes || keyframes.length === 0) return;
 
   const frameWidth = dimensions.width;
@@ -250,7 +309,7 @@ export function exportAnimationSpritesheet(store: AppState) {
       if (!layer.visible || layer.opacity === 0) continue;
 
       const imageData = new ImageData(
-        new Uint8ClampedArray(layer.data) as any,
+        new Uint8ClampedArray(layer.data),
         frameWidth,
         frameHeight,
       );
@@ -315,7 +374,7 @@ export function exportToPNG(store: AppState, scale: number = 1) {
     // Since TS has some quirks with ArrayBuffer vs SharedArrayBuffer in some environments,
     // we cast through any to fix type checking for ImageDataArray.
     const imageData = new ImageData(
-      new Uint8ClampedArray(layer.data) as any,
+      new Uint8ClampedArray(layer.data),
       dimensions.width,
       dimensions.height,
     );
