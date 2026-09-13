@@ -40,7 +40,13 @@ export function SpritesheetDialog({ onClose }: SpritesheetDialogProps) {
       width: 0,
       height: 0,
       exceedMax: false,
-      frames: [] as any[],
+      frames: [] as {
+        name: string;
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+      }[],
     };
 
     if (images.length > 0) {
@@ -166,7 +172,7 @@ export function SpritesheetDialog({ onClose }: SpritesheetDialogProps) {
     a.click();
 
     // 2. Export JSON Metadata
-    const framesData: Record<string, any> = {};
+    const framesData: Record<string, unknown> = {};
     layout.frames.forEach((frame) => {
       framesData[frame.name] = {
         frame: { x: frame.x, y: frame.y, w: frame.w, h: frame.h },

@@ -12,6 +12,13 @@ function cloneLayers(layers: Layer[]): Layer[] {
   }));
 }
 
+function cloneKeyframes(keyframes: any[]): any[] {
+  return keyframes.map((kf) => ({
+    ...kf,
+    layers: cloneLayers(kf.layers),
+  }));
+}
+
 export function TransformDialog({
   mode,
   onClose,
@@ -47,25 +54,42 @@ export function TransformDialog({
       (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0)
     )
       return;
+
+    store.updateCurrentKeyframe();
+    const freshStore = useAppStore.getState();
+
     const before = {
-      dimensions: { ...store.dimensions },
-      layers: cloneLayers(store.layers),
-      activeLayerId: store.activeLayerId,
+      dimensions: { ...freshStore.dimensions },
+      layers: cloneLayers(freshStore.layers),
+      keyframes: cloneKeyframes(freshStore.keyframes),
+      activeLayerId: freshStore.activeLayerId,
     };
-    const afterLayers =
-      mode === "scale"
-        ? scaleImage(before.layers, before.dimensions, width, height)
-        : resizeCanvas(
-            before.layers,
-            before.dimensions,
-            width,
-            height,
-            mode === "crop" ? -x : 0,
-            mode === "crop" ? -y : 0,
-          );
+
+    const afterKeyframes = before.keyframes.map((kf) => {
+      const kfAfterLayers =
+        mode === "scale"
+          ? scaleImage(kf.layers, before.dimensions, width, height)
+          : resizeCanvas(
+              kf.layers,
+              before.dimensions,
+              width,
+              height,
+              mode === "crop" ? -x : 0,
+              mode === "crop" ? -y : 0,
+            );
+      return { ...kf, layers: kfAfterLayers };
+    });
+
+    // We also need to get the afterLayers for the currently active keyframe to display
+    const activeKf =
+      afterKeyframes.find((k) => k.id === freshStore.activeKeyframeId) ||
+      afterKeyframes[0];
+    const afterLayers = activeKf ? cloneLayers(activeKf.layers) : [];
+
     const after = {
       dimensions: { width, height },
       layers: afterLayers,
+      keyframes: afterKeyframes,
       activeLayerId: before.activeLayerId,
     };
     const apply = (snapshot: typeof before) =>
@@ -74,6 +98,7 @@ export function TransformDialog({
         .replaceCanvas(
           snapshot.dimensions,
           cloneLayers(snapshot.layers),
+          cloneKeyframes(snapshot.keyframes),
           snapshot.activeLayerId,
         );
     const command: Command = {

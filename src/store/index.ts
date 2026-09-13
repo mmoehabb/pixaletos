@@ -37,11 +37,14 @@ export interface AppState
     metadata: any,
     dimensions: any,
     layers: Layer[],
+    keyframes: Keyframe[],
     activeLayerId: string | null,
+    fps: number,
   ) => void;
   replaceCanvas: (
     dimensions: ProjectState["dimensions"],
     layers: Layer[],
+    keyframes: Keyframe[],
     activeLayerId: string | null,
   ) => void;
 
@@ -232,28 +235,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
-  loadProjectState: (metadata, dimensions, layers, activeLayerId) =>
+  loadProjectState: (
+    metadata,
+    dimensions,
+    layers,
+    keyframes,
+    activeLayerId,
+    fps,
+  ) =>
     set({
       metadata,
       dimensions,
       layers,
+      keyframes,
       activeLayerId,
+      activeKeyframeId: keyframes.length > 0 ? keyframes[0].id : null,
+      fps,
       selection: null,
       past: [], // Reset history on load
       future: [],
     }),
 
-  replaceCanvas: (dimensions, layers, activeLayerId) =>
+  replaceCanvas: (dimensions, layers, keyframes, activeLayerId) =>
     set((state) => ({
       dimensions,
       layers,
+      keyframes,
       activeLayerId,
       // A selection mask is dimension-dependent. Keeping the old mask would
       // block drawing outside its former bounds after a resize or rotation.
       selection: null,
       metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
     })),
-
   addKeyframe: () =>
     set((state) => {
       const newLayers = cloneLayers(state.layers);

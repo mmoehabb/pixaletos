@@ -109,29 +109,62 @@ export function MenuBar() {
       ...layer,
       data: new Uint8ClampedArray(layer.data),
     }));
+  const cloneKeyframes = (keyframes: any[]) =>
+    keyframes.map((kf) => ({
+      ...kf,
+      layers: cloneLayers(kf.layers),
+    }));
+
   const applyTransform = (
     name: string,
-    dimensions: typeof store.dimensions,
-    layers: Layer[],
+    transformFn: (
+      layers: Layer[],
+      dimensions: typeof store.dimensions,
+    ) => { layers: Layer[]; dimensions: typeof store.dimensions },
   ) => {
+    store.updateCurrentKeyframe();
+    const freshStore = useAppStore.getState();
+
     const before = {
-      dimensions: { ...store.dimensions },
-      layers: cloneLayers(store.layers),
-      activeLayerId: store.activeLayerId,
+      dimensions: { ...freshStore.dimensions },
+      layers: cloneLayers(freshStore.layers),
+      keyframes: cloneKeyframes(freshStore.keyframes),
+      activeLayerId: freshStore.activeLayerId,
     };
+
+    const afterKeyframes = before.keyframes.map((kf) => {
+      const result = transformFn(kf.layers, before.dimensions);
+      return { ...kf, layers: result.layers };
+    });
+
+    // Evaluate the dimensions from the first transform (they should all be the same)
+    const { dimensions: afterDimensions } = transformFn(
+      before.keyframes[0].layers,
+      before.dimensions,
+    );
+
+    const activeKf =
+      afterKeyframes.find((k) => k.id === freshStore.activeKeyframeId) ||
+      afterKeyframes[0];
+    const afterLayers = activeKf ? cloneLayers(activeKf.layers) : [];
+
     const after = {
-      dimensions,
-      layers: cloneLayers(layers),
-      activeLayerId: store.activeLayerId,
+      dimensions: afterDimensions,
+      layers: afterLayers,
+      keyframes: afterKeyframes,
+      activeLayerId: freshStore.activeLayerId,
     };
+
     const apply = (snapshot: typeof before) =>
       useAppStore
         .getState()
         .replaceCanvas(
           snapshot.dimensions,
           cloneLayers(snapshot.layers),
+          cloneKeyframes(snapshot.keyframes),
           snapshot.activeLayerId,
         );
+
     store.executeCommand({
       name,
       undo: () => apply(before),
@@ -196,38 +229,34 @@ export function MenuBar() {
     {
       label: "Rotate 90° Clockwise",
       onClick: () => {
-        const result = rotateImage(store.layers, store.dimensions, true);
-        applyTransform("Rotate clockwise", result.dimensions, result.layers);
+        applyTransform("Rotate clockwise", (layers, dims) =>
+          rotateImage(layers, dims, true),
+        );
       },
     },
     {
       label: "Rotate 90° Counterclockwise",
       onClick: () => {
-        const result = rotateImage(store.layers, store.dimensions, false);
-        applyTransform(
-          "Rotate counterclockwise",
-          result.dimensions,
-          result.layers,
+        applyTransform("Rotate counterclockwise", (layers, dims) =>
+          rotateImage(layers, dims, false),
         );
       },
     },
     {
       label: "Flip Horizontal",
       onClick: () =>
-        applyTransform(
-          "Flip horizontal",
-          store.dimensions,
-          flipImage(store.layers, store.dimensions, true),
-        ),
+        applyTransform("Flip horizontal", (layers, dims) => ({
+          layers: flipImage(layers, dims, true),
+          dimensions: dims,
+        })),
     },
     {
       label: "Flip Vertical",
       onClick: () =>
-        applyTransform(
-          "Flip vertical",
-          store.dimensions,
-          flipImage(store.layers, store.dimensions, false),
-        ),
+        applyTransform("Flip vertical", (layers, dims) => ({
+          layers: flipImage(layers, dims, false),
+          dimensions: dims,
+        })),
     },
   ];
 
