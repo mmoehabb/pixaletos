@@ -39,6 +39,19 @@ export type Tool =
   | "pan"
   | "zoom";
 
+export interface Keyframe {
+  id: string;
+  layers: Layer[];
+}
+
+export interface AnimationState {
+  keyframes: Keyframe[];
+  activeKeyframeId: string | null;
+  isPlaying: boolean;
+  fps: number;
+  isTimelineVisible: boolean;
+}
+
 export interface EditorState {
   currentTool: Tool;
   foregroundColor: string;

@@ -233,6 +233,7 @@ export const PixelCanvas: React.FC = () => {
     setSelection,
     setForegroundColor,
     setZoom,
+    isPlaying,
   } = useAppStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -768,6 +769,7 @@ export const PixelCanvas: React.FC = () => {
   const lassoPoints = useRef<{ x: number; y: number }[]>([]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPlaying) return;
     if (e.button === 1 || currentTool === "pan") {
       setIsPanning(true);
       lastPanPosition.current = { x: e.clientX, y: e.clientY };
@@ -994,6 +996,7 @@ export const PixelCanvas: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPlaying && isPanning) return;
     if (isPanning && lastPanPosition.current) {
       const dx = e.clientX - lastPanPosition.current.x;
       const dy = e.clientY - lastPanPosition.current.y;
@@ -1265,6 +1268,7 @@ export const PixelCanvas: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPlaying && !isPanning) return;
     if (isPanning) {
       setIsPanning(false);
       lastPanPosition.current = null;
@@ -1716,6 +1720,12 @@ export const PixelCanvas: React.FC = () => {
           </Application>
         </div>
       </div>
+
+      {isPlaying && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur pointer-events-none">
+          Playing Animation...
+        </div>
+      )}
     </div>
   );
 };
