@@ -6,9 +6,12 @@ import type {
   Tool,
   Layer,
   Command,
+  AnimationState,
+  Keyframe,
 } from "../types";
 
-export interface AppState extends ProjectState, EditorState, HistoryState {
+export interface AppState
+  extends ProjectState, EditorState, HistoryState, AnimationState {
   createNewProject: (width?: number, height?: number) => void;
   setDimensions: (width: number, height: number) => void;
   setTool: (tool: Tool) => void;
@@ -41,7 +44,24 @@ export interface AppState extends ProjectState, EditorState, HistoryState {
     layers: Layer[],
     activeLayerId: string | null,
   ) => void;
+
+  addKeyframe: () => void;
+  duplicateKeyframe: (id: string) => void;
+  deleteKeyframe: (id: string) => void;
+  selectKeyframe: (id: string) => void;
+  updateCurrentKeyframe: () => void;
+  setIsPlaying: (isPlaying: boolean) => void;
+  setFps: (fps: number) => void;
+  setIsTimelineVisible: (isVisible: boolean) => void;
 }
+
+const cloneLayers = (layers: Layer[]): Layer[] => {
+  return layers.map((layer) => ({
+    ...layer,
+    id: crypto.randomUUID(),
+    data: new Uint8ClampedArray(layer.data),
+  }));
+};
 
 export const useAppStore = create<AppState>((set, get) => ({
   metadata: {
@@ -67,6 +87,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   past: [],
   future: [],
 
+  keyframes: [],
+  activeKeyframeId: null,
+  isPlaying: false,
+  fps: 12,
+  isTimelineVisible: false,
+
   createNewProject: (width = 64, height = 64) =>
     set(() => {
       const now = new Date().toISOString();
@@ -77,6 +103,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         opacity: 1,
         data: new Uint8ClampedArray(width * height * 4),
       };
+      const initialKeyframe: Keyframe = {
+        id: crypto.randomUUID(),
+        layers: cloneLayers([layer]),
+      };
+
       return {
         metadata: {
           name: "Untitled Project",
@@ -90,6 +121,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         pan: { x: 0, y: 0 },
         past: [],
         future: [],
+        keyframes: [initialKeyframe],
+        activeKeyframeId: initialKeyframe.id,
       };
     }),
 
@@ -135,16 +168,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   updateLayer: (id, updates) =>
-    set((state) => ({
-      layers: state.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)),
-      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-    })),
+    set((state) => {
+      const newLayers = state.layers.map((l) =>
+        l.id === id ? { ...l, ...updates } : l,
+      );
+      return {
+        layers: newLayers,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
 
   updateLayerData: (id, data) =>
-    set((state) => ({
-      layers: state.layers.map((l) => (l.id === id ? { ...l, data } : l)),
-      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-    })),
+    set((state) => {
+      const newLayers = state.layers.map((l) =>
+        l.id === id ? { ...l, data } : l,
+      );
+      return {
+        layers: newLayers,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
 
   setActiveLayer: (id) => set({ activeLayerId: id }),
 
@@ -210,4 +253,145 @@ export const useAppStore = create<AppState>((set, get) => ({
       selection: null,
       metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
     })),
+
+  addKeyframe: () =>
+    set((state) => {
+      const newLayers = cloneLayers(state.layers);
+      const newKeyframe: Keyframe = {
+        id: crypto.randomUUID(),
+        layers: newLayers,
+      };
+
+      const loadedLayers = cloneLayers(newKeyframe.layers);
+
+      // Determine the matching active layer in the newly cloned array
+      // by finding the one at the same index
+      const activeLayerIndex = state.layers.findIndex(
+        (l) => l.id === state.activeLayerId,
+      );
+      const nextActiveLayerId =
+        activeLayerIndex !== -1
+          ? loadedLayers[activeLayerIndex].id
+          : loadedLayers[0]?.id || null;
+
+      return {
+        keyframes: [...state.keyframes, newKeyframe],
+        activeKeyframeId: newKeyframe.id,
+        layers: loadedLayers,
+        activeLayerId: nextActiveLayerId,
+      };
+    }),
+
+  duplicateKeyframe: (id) =>
+    set((state) => {
+      const keyframeToDuplicate = state.keyframes.find((k) => k.id === id);
+      if (!keyframeToDuplicate) return state;
+
+      const newKeyframe: Keyframe = {
+        id: crypto.randomUUID(),
+        layers: cloneLayers(keyframeToDuplicate.layers),
+      };
+
+      const index = state.keyframes.findIndex((k) => k.id === id);
+      const newKeyframes = [...state.keyframes];
+      newKeyframes.splice(index + 1, 0, newKeyframe);
+
+      const loadedLayers = cloneLayers(newKeyframe.layers);
+      const activeLayerIndex = state.layers.findIndex(
+        (l) => l.id === state.activeLayerId,
+      );
+      const nextActiveLayerId =
+        activeLayerIndex !== -1
+          ? loadedLayers[activeLayerIndex].id
+          : loadedLayers[0]?.id || null;
+
+      return {
+        keyframes: newKeyframes,
+        activeKeyframeId: newKeyframe.id,
+        layers: loadedLayers,
+        activeLayerId: nextActiveLayerId,
+      };
+    }),
+
+  deleteKeyframe: (id) =>
+    set((state) => {
+      if (state.keyframes.length <= 1) return state; // Don't delete the last keyframe
+
+      const index = state.keyframes.findIndex((k) => k.id === id);
+      const newKeyframes = state.keyframes.filter((k) => k.id !== id);
+
+      let nextActiveId = state.activeKeyframeId;
+      let nextLayers = state.layers;
+      let nextActiveLayerId = state.activeLayerId;
+
+      if (state.activeKeyframeId === id) {
+        const nextKeyframe =
+          newKeyframes[Math.min(index, newKeyframes.length - 1)];
+        nextActiveId = nextKeyframe.id;
+        nextLayers = cloneLayers(nextKeyframe.layers);
+
+        const activeLayerIndex = state.layers.findIndex(
+          (l) => l.id === state.activeLayerId,
+        );
+        nextActiveLayerId =
+          activeLayerIndex !== -1 && nextLayers[activeLayerIndex]
+            ? nextLayers[activeLayerIndex].id
+            : nextLayers[0]?.id || null;
+      }
+
+      return {
+        keyframes: newKeyframes,
+        activeKeyframeId: nextActiveId,
+        layers: nextLayers,
+        activeLayerId: nextActiveLayerId,
+      };
+    }),
+
+  selectKeyframe: (id) =>
+    set((state) => {
+      const keyframe = state.keyframes.find((k) => k.id === id);
+      if (!keyframe) return state;
+
+      // When selecting a new keyframe, we first need to save the current canvas state
+      // to the previously active keyframe, then load the new one.
+      const updatedKeyframes = state.keyframes.map((k) => {
+        if (k.id === state.activeKeyframeId) {
+          return { ...k, layers: cloneLayers(state.layers) };
+        }
+        return k;
+      });
+
+      const loadedLayers = cloneLayers(keyframe.layers);
+      const activeLayerIndex = state.layers.findIndex(
+        (l) => l.id === state.activeLayerId,
+      );
+      const nextActiveLayerId =
+        activeLayerIndex !== -1 && loadedLayers[activeLayerIndex]
+          ? loadedLayers[activeLayerIndex].id
+          : loadedLayers[0]?.id || null;
+
+      return {
+        keyframes: updatedKeyframes,
+        activeKeyframeId: id,
+        layers: loadedLayers,
+        activeLayerId: nextActiveLayerId,
+      };
+    }),
+
+  updateCurrentKeyframe: () =>
+    set((state) => {
+      if (!state.activeKeyframeId) return state;
+
+      return {
+        keyframes: state.keyframes.map((k) =>
+          k.id === state.activeKeyframeId
+            ? { ...k, layers: cloneLayers(state.layers) }
+            : k,
+        ),
+      };
+    }),
+
+  setIsPlaying: (isPlaying) => set({ isPlaying }),
+  setFps: (fps) => set({ fps }),
+  setIsTimelineVisible: (isTimelineVisible) => set({ isTimelineVisible }),
 }));

@@ -225,6 +225,58 @@ export function importPNG(store: AppState) {
   input.click();
 }
 
+export function exportAnimationSpritesheet(store: AppState) {
+  const { dimensions, keyframes } = store;
+  if (!keyframes || keyframes.length === 0) return;
+
+  const frameWidth = dimensions.width;
+  const frameHeight = dimensions.height;
+  const columns = keyframes.length;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = frameWidth * columns;
+  canvas.height = frameHeight;
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  keyframes.forEach((keyframe, index) => {
+    const xOffset = index * frameWidth;
+
+    // Draw layers from bottom to top (assuming layers array is top-to-bottom, reverse it)
+    for (let i = keyframe.layers.length - 1; i >= 0; i--) {
+      const layer = keyframe.layers[i];
+      if (!layer.visible || layer.opacity === 0) continue;
+
+      const imageData = new ImageData(
+        new Uint8ClampedArray(layer.data) as any,
+        frameWidth,
+        frameHeight,
+      );
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = frameWidth;
+      tempCanvas.height = frameHeight;
+      const tempCtx = tempCanvas.getContext("2d");
+      if (!tempCtx) continue;
+
+      tempCtx.putImageData(imageData, 0, 0);
+
+      ctx.globalAlpha = layer.opacity;
+      ctx.drawImage(tempCanvas, xOffset, 0);
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  canvas.toBlob((blob) => {
+    if (blob) {
+      const filename = `${store.metadata.name.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "animation"}_spritesheet.png`;
+      saveAs(blob, filename);
+    }
+  }, "image/png");
+}
+
 export function exportToPNG(store: AppState, scale: number = 1) {
   const { dimensions, layers } = store;
   if (!Number.isInteger(scale) || scale < 1 || scale > 64) {

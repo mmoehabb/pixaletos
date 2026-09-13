@@ -4,11 +4,20 @@ import { PixelCanvas } from "./components/workspace/PixelCanvas";
 import { RightPanel } from "./components/workspace/RightPanel";
 import { KeyboardShortcuts } from "./components/workspace/KeyboardShortcuts";
 import { MenuBar } from "./components/workspace/MenuBar";
+import { TimelineDock } from "./components/workspace/TimelineDock";
 import { useAppStore } from "./store";
 
 function App() {
-  const { addLayer, layers, dimensions, zoom, currentTool, setZoom } =
-    useAppStore();
+  const {
+    addLayer,
+    layers,
+    dimensions,
+    zoom,
+    currentTool,
+    setZoom,
+    isTimelineVisible,
+    setIsTimelineVisible,
+  } = useAppStore();
 
   useEffect(() => {
     if (layers.length === 0) {
@@ -44,6 +53,7 @@ function App() {
 
         <div className="flex-1 flex flex-col relative overflow-hidden bg-neutral-950">
           <PixelCanvas />
+          {isTimelineVisible && <TimelineDock />}
         </div>
 
         <RightPanel />
@@ -51,7 +61,18 @@ function App() {
 
       {/* Status Bar */}
       <div className="z-20 flex h-7 flex-shrink-0 items-center justify-between border-t border-white/8 bg-[#191c23] px-3 text-xs text-neutral-400">
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <button
+            onClick={() => setIsTimelineVisible(!isTimelineVisible)}
+            className={`px-2 py-0.5 rounded transition-colors ${
+              isTimelineVisible
+                ? "bg-indigo-500/20 text-indigo-300"
+                : "hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            Timeline
+          </button>
+          <div className="w-px h-4 bg-white/10" />
           <span>
             Tool:{" "}
             <span className="capitalize text-neutral-100">{currentTool}</span>
