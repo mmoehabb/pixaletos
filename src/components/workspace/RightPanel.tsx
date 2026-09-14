@@ -12,7 +12,11 @@ import {
   Send,
   Loader2,
 } from "lucide-react";
-import { MockAIProvider } from "../../utils/ai";
+import {
+  MockAIProvider,
+  serializeEditorContext,
+  normalizePixelArt,
+} from "../../utils/ai";
 import type { Layer } from "../../types";
 
 export const RightPanel: React.FC = () => {
@@ -25,12 +29,21 @@ export const RightPanel: React.FC = () => {
     if (!prompt.trim()) return;
     setIsProcessing(true);
 
+    const context = serializeEditorContext(useAppStore.getState());
+
     try {
-      const result = await MockAIProvider.generate(prompt, {
-        dimensions: store.dimensions,
-      });
+      const result = await MockAIProvider.generate(prompt, context);
 
       if (result.success && result.data) {
+        // Quick normalize for the quick panel generate
+        const normalizedData = normalizePixelArt(
+          result.data,
+          { width: context.canvas.width, height: context.canvas.height },
+          { width: context.canvas.width, height: context.canvas.height },
+          context.palette,
+        );
+        result.data = normalizedData;
+
         const newLayer: Layer = {
           id: crypto.randomUUID(),
           name: `AI: ${prompt.slice(0, 15)}...`,

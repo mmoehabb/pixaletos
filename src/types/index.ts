@@ -73,12 +73,45 @@ export interface HistoryState {
   future: Command[];
 }
 
+export interface SerializedLayer {
+  id: string;
+  name: string;
+  visible: boolean;
+  opacity: number;
+  data: Uint8ClampedArray;
+}
+
+export interface AIEditorContext {
+  canvas: {
+    width: number;
+    height: number;
+  };
+  layers: SerializedLayer[];
+  palette: string[];
+  selection?: {
+    bounds: { x: number; y: number; width: number; height: number };
+    mask: Uint8Array;
+  };
+}
+
+export type AIOperation =
+  | { type: "generate"; prompt: string }
+  | { type: "edit"; instruction: string }
+  | { type: "analyze"; instruction: string }
+  | { type: "pixel-manipulation" }
+  | { type: "palette" }
+  | { type: "resize" };
+
 export interface AIProvider {
   id: string;
   name: string;
-  generate: (prompt: string, context: any) => Promise<any>;
-  edit: (asset: any, instruction: string, context: any) => Promise<any>;
-  analyze: (asset: any, context: any) => Promise<any>;
+  generate: (prompt: string, context: AIEditorContext) => Promise<any>;
+  edit: (
+    asset: Uint8ClampedArray,
+    instruction: string,
+    context: AIEditorContext,
+  ) => Promise<any>;
+  analyze: (asset: Uint8ClampedArray, context: AIEditorContext) => Promise<any>;
 }
 
 export interface AISettings {
@@ -89,7 +122,13 @@ export interface AISettings {
 
 export interface AIHistoryItem {
   id: string;
-  type: "generate" | "edit" | "analyze";
+  type:
+    | "generate"
+    | "edit"
+    | "analyze"
+    | "pixel-manipulation"
+    | "palette"
+    | "resize";
   prompt: string;
   status: "pending" | "success" | "error";
   timestamp: number;
@@ -102,4 +141,9 @@ export interface AIState {
   aiHistory: AIHistoryItem[];
   isAskAIDialogOpen: boolean;
   isAISettingsDialogOpen: boolean;
+  aiPreviewResult: {
+    data: Uint8ClampedArray;
+    type: string;
+    prompt: string;
+  } | null;
 }
