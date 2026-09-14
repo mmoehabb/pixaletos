@@ -56,6 +56,9 @@ export interface AppState
   updateAIHistoryItem: (id: string, updates: Partial<AIHistoryItem>) => void;
   setAskAIDialogOpen: (isOpen: boolean) => void;
   setAISettingsDialogOpen: (isOpen: boolean) => void;
+  setAIPreviewResult: (
+    result: { data: Uint8ClampedArray; type: string; prompt: string } | null,
+  ) => void;
 
   addKeyframe: () => void;
   duplicateKeyframe: (id: string) => void;
@@ -113,6 +116,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiHistory: [],
   isAskAIDialogOpen: false,
   isAISettingsDialogOpen: false,
+  aiPreviewResult: null,
 
   createNewProject: (width = 64, height = 64) =>
     set(() => {
@@ -443,4 +447,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
   setAskAIDialogOpen: (isOpen) => set({ isAskAIDialogOpen: isOpen }),
   setAISettingsDialogOpen: (isOpen) => set({ isAISettingsDialogOpen: isOpen }),
+  setAIPreviewResult: (result) => set({ aiPreviewResult: result }),
 }));

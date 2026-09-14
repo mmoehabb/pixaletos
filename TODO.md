@@ -38,12 +38,12 @@
 
 ## Phase 5 — AI Orchestration
 
-- [ ] Implement editor-context serialization (dimensions, layers, palette, selected region)
-- [ ] Wire AI requests to parse context and decide operation type
-- [ ] Build AI to Asset pipeline (generation -> pixel normalization -> editor asset)
-- [ ] Implement region-aware AI editing workflows
-- [ ] Build diff/preview UI for AI modifications (Accept / Reject)
-- [ ] Integrate accepted AI operations into standard undo/redo history
+- [x] Implement editor-context serialization (dimensions, layers, palette, selected region)
+- [x] Wire AI requests to parse context and decide operation type
+- [x] Build AI to Asset pipeline (generation -> pixel normalization -> editor asset)
+- [x] Implement region-aware AI editing workflows
+- [x] Build diff/preview UI for AI modifications (Accept / Reject)
+- [x] Integrate accepted AI operations into standard undo/redo history
 
 ## Phase 6 — Polish
 
