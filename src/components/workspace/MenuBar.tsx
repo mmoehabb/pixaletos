@@ -10,6 +10,7 @@ import { flipImage, rotateImage } from "../../utils/transforms";
 import { TransformDialog, type TransformMode } from "./TransformDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SpritesheetDialog } from "./SpritesheetDialog";
+import { AISettingsDialog } from "./AISettingsDialog";
 import type { Command, Layer } from "../../types";
 
 interface MenuItem {
@@ -285,9 +286,12 @@ export function MenuBar() {
   ];
 
   const aiItems: MenuItem[] = [
-    { label: "Generate...", disabled: true },
-    { label: "Edit Selection...", disabled: true },
-    { label: "Settings...", disabled: true },
+    { label: "Ask AI...", onClick: () => store.setAskAIDialogOpen(true) },
+    { divider: true },
+    {
+      label: "Settings...",
+      onClick: () => store.setAISettingsDialogOpen(true),
+    },
   ];
 
   const menus = [
@@ -325,6 +329,7 @@ export function MenuBar() {
       {isSpritesheetDialogOpen && (
         <SpritesheetDialog onClose={() => setIsSpritesheetDialogOpen(false)} />
       )}
+      <AISettingsDialog />
     </>
   );
 }
