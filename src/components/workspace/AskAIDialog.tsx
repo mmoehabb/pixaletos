@@ -23,7 +23,7 @@ export const AskAIDialog: React.FC = () => {
     if (!prompt.trim()) return;
 
     setIsProcessing(true);
-    const type = "generate"; // Default for now
+    const type: "generate" | "edit" | "analyze" = "generate"; // Default for now
 
     const historyItem = {
       type,
