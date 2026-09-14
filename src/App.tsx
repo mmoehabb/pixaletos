@@ -5,6 +5,7 @@ import { RightPanel } from "./components/workspace/RightPanel";
 import { KeyboardShortcuts } from "./components/workspace/KeyboardShortcuts";
 import { MenuBar } from "./components/workspace/MenuBar";
 import { TimelineDock } from "./components/workspace/TimelineDock";
+import { AskAIDialog } from "./components/workspace/AskAIDialog";
 import { useAppStore } from "./store";
 
 function App() {
@@ -58,6 +59,8 @@ function App() {
 
         <RightPanel />
       </div>
+
+      <AskAIDialog />
 
       {/* Status Bar */}
       <div className="z-20 flex h-7 flex-shrink-0 items-center justify-between border-t border-white/8 bg-[#191c23] px-3 text-xs text-neutral-400">

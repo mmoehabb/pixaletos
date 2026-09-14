@@ -80,3 +80,26 @@ export interface AIProvider {
   edit: (asset: any, instruction: string, context: any) => Promise<any>;
   analyze: (asset: any, context: any) => Promise<any>;
 }
+
+export interface AISettings {
+  providerId: string;
+  apiKey: string;
+  customEndpoint: string;
+}
+
+export interface AIHistoryItem {
+  id: string;
+  type: "generate" | "edit" | "analyze";
+  prompt: string;
+  status: "pending" | "success" | "error";
+  timestamp: number;
+  result?: any;
+  error?: string;
+}
+
+export interface AIState {
+  aiSettings: AISettings;
+  aiHistory: AIHistoryItem[];
+  isAskAIDialogOpen: boolean;
+  isAISettingsDialogOpen: boolean;
+}

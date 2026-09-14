@@ -8,10 +8,13 @@ import type {
   Command,
   AnimationState,
   Keyframe,
+  AIState,
+  AISettings,
+  AIHistoryItem,
 } from "../types";
 
 export interface AppState
-  extends ProjectState, EditorState, HistoryState, AnimationState {
+  extends ProjectState, EditorState, HistoryState, AnimationState, AIState {
   createNewProject: (width?: number, height?: number) => void;
   setDimensions: (width: number, height: number) => void;
   setTool: (tool: Tool) => void;
@@ -47,6 +50,12 @@ export interface AppState
     keyframes: Keyframe[],
     activeLayerId: string | null,
   ) => void;
+
+  setAISettings: (settings: Partial<AISettings>) => void;
+  addAIHistoryItem: (item: Omit<AIHistoryItem, "id" | "timestamp">) => void;
+  updateAIHistoryItem: (id: string, updates: Partial<AIHistoryItem>) => void;
+  setAskAIDialogOpen: (isOpen: boolean) => void;
+  setAISettingsDialogOpen: (isOpen: boolean) => void;
 
   addKeyframe: () => void;
   duplicateKeyframe: (id: string) => void;
@@ -95,6 +104,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   isPlaying: false,
   fps: 12,
   isTimelineVisible: false,
+
+  aiSettings: {
+    providerId: "mock",
+    apiKey: "",
+    customEndpoint: "",
+  },
+  aiHistory: [],
+  isAskAIDialogOpen: false,
+  isAISettingsDialogOpen: false,
 
   createNewProject: (width = 64, height = 64) =>
     set(() => {
@@ -407,4 +425,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setFps: (fps) => set({ fps }),
   setIsTimelineVisible: (isTimelineVisible) => set({ isTimelineVisible }),
+
+  setAISettings: (settings) =>
+    set((state) => ({ aiSettings: { ...state.aiSettings, ...settings } })),
+  addAIHistoryItem: (item) =>
+    set((state) => ({
+      aiHistory: [
+        { ...item, id: crypto.randomUUID(), timestamp: Date.now() },
+        ...state.aiHistory,
+      ],
+    })),
+  updateAIHistoryItem: (id, updates) =>
+    set((state) => ({
+      aiHistory: state.aiHistory.map((item) =>
+        item.id === id ? { ...item, ...updates } : item,
+      ),
+    })),
+  setAskAIDialogOpen: (isOpen) => set({ isAskAIDialogOpen: isOpen }),
+  setAISettingsDialogOpen: (isOpen) => set({ isAISettingsDialogOpen: isOpen }),
 }));
