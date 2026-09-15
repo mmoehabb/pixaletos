@@ -118,6 +118,7 @@ export interface AISettings {
   providerId: string;
   apiKey: string;
   customEndpoint: string;
+  model: string;
 }
 
 export interface AIHistoryItem {

@@ -114,6 +114,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     providerId: "mock",
     apiKey: "",
     customEndpoint: "",
+    model: "dall-e-3",
   },
   aiHistory: [],
   isAskAIDialogOpen: false,

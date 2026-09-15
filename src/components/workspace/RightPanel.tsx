@@ -13,7 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import {
-  MockAIProvider,
+  getActiveProvider,
   serializeEditorContext,
   normalizePixelArt,
 } from "../../utils/ai";
@@ -36,7 +36,7 @@ export const RightPanel: React.FC = () => {
     const context = serializeEditorContext(useAppStore.getState());
 
     try {
-      const result = await MockAIProvider.generate(prompt, context);
+      const result = await getActiveProvider().generate(prompt, context);
 
       if (result.success && result.data) {
         // Quick normalize for the quick panel generate
