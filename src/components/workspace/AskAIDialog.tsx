@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAppStore } from "../../store";
 import {
-  MockAIProvider,
+  getActiveProvider,
   serializeEditorContext,
   resolveAIOperation,
   normalizePixelArt,
@@ -54,16 +54,17 @@ export const AskAIDialog: React.FC = () => {
 
     try {
       let result;
+      const activeProvider = getActiveProvider();
 
       // 3. Call the appropriate provider method
       if (operation.type === "generate") {
-        result = await MockAIProvider.generate(prompt, context);
+        result = await activeProvider.generate(prompt, context);
       } else if (operation.type === "edit") {
         const activeLayer = currentState.layers.find(
           (l) => l.id === currentState.activeLayerId,
         );
         if (!activeLayer) throw new Error("No active layer to edit");
-        result = await MockAIProvider.edit(
+        result = await activeProvider.edit(
           activeLayer.data,
           operation.instruction,
           context,
@@ -73,7 +74,7 @@ export const AskAIDialog: React.FC = () => {
           (l) => l.id === currentState.activeLayerId,
         );
         if (!activeLayer) throw new Error("No active layer to analyze");
-        result = await MockAIProvider.analyze(activeLayer.data, context);
+        result = await activeProvider.analyze(activeLayer.data, context);
       } else {
         throw new Error("Unsupported operation type");
       }
@@ -118,6 +119,16 @@ export const AskAIDialog: React.FC = () => {
           });
         }
         setPrompt("");
+      } else if (!result.success) {
+        const recentItem = useAppStore
+          .getState()
+          .aiHistory.find((i) => i.prompt === prompt && i.status === "pending");
+        if (recentItem) {
+          store.updateAIHistoryItem(recentItem.id, {
+            status: "error",
+            error: result.error || "Failed to process request",
+          });
+        }
       }
     } catch (error: any) {
       const recentItem = useAppStore

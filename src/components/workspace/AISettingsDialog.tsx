@@ -31,13 +31,23 @@ export const AISettingsDialog: React.FC = () => {
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="mock">Mock Provider (Local)</option>
-              <option value="openai" disabled>
-                OpenAI / ChatGPT (Coming soon)
-              </option>
-              <option value="custom" disabled>
-                Custom HTTP API (Coming soon)
+              <option value="openai">OpenAI / ChatGPT</option>
+              <option value="custom">
+                Custom HTTP API (OpenAI Compatible)
               </option>
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-gray-300">Model Name</label>
+            <input
+              type="text"
+              placeholder="e.g. dall-e-3"
+              value={store.aiSettings.model}
+              onChange={(e) => store.setAISettings({ model: e.target.value })}
+              disabled={store.aiSettings.providerId === "mock"}
+              className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+            />
           </div>
 
           <div className="space-y-2">
