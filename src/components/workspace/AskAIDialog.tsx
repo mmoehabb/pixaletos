@@ -119,6 +119,16 @@ export const AskAIDialog: React.FC = () => {
           });
         }
         setPrompt("");
+      } else if (!result.success) {
+        const recentItem = useAppStore
+          .getState()
+          .aiHistory.find((i) => i.prompt === prompt && i.status === "pending");
+        if (recentItem) {
+          store.updateAIHistoryItem(recentItem.id, {
+            status: "error",
+            error: result.error || "Failed to process request",
+          });
+        }
       }
     } catch (error: any) {
       const recentItem = useAppStore

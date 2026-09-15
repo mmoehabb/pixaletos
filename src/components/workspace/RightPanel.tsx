@@ -90,9 +90,22 @@ export const RightPanel: React.FC = () => {
         });
         useAppStore.getState().updateCurrentKeyframe();
         setPrompt("");
+      } else if (!result.success && result.error) {
+        store.addAIHistoryItem({
+          type: "generate",
+          prompt: prompt,
+          status: "error",
+          error: result.error,
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      store.addAIHistoryItem({
+        type: "generate",
+        prompt: prompt,
+        status: "error",
+        error: error.message || "An unknown error occurred",
+      });
     } finally {
       setIsProcessing(false);
     }

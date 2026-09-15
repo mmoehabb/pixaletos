@@ -66,14 +66,14 @@ export const createOpenAIProvider = (settings: AISettings): AIProvider => {
           prompt: `Create pixel art of: ${prompt}. Clean, crisp pixel art, simple background, suitable for a sprite, game asset style.`,
           n: 1,
           size: "1024x1024", // Standard size, we will scale down
-          response_format: "b64_json",
         });
 
-        const b64 = response.data?.[0]?.b64_json;
-        if (!b64) throw new Error("No image data returned from API");
+        const urlOrB64 =
+          response.data?.[0]?.url || response.data?.[0]?.b64_json;
+        if (!urlOrB64) throw new Error("No image data returned from API");
 
         const pixelData = await imageToPixelData(
-          b64,
+          urlOrB64,
           context.canvas.width,
           context.canvas.height,
         );
@@ -208,15 +208,15 @@ export const createOpenAIProvider = (settings: AISettings): AIProvider => {
           prompt: `Pixel art style, keeping the existing pixel art structure. ${instruction}`,
           n: 1,
           size: "512x512", // match upscaled size
-          response_format: "b64_json",
         });
 
-        const b64 = response.data?.[0]?.b64_json;
-        if (!b64) throw new Error("No image data returned");
+        const urlOrB64 =
+          response.data?.[0]?.url || response.data?.[0]?.b64_json;
+        if (!urlOrB64) throw new Error("No image data returned");
 
         // 4. Downscale back to original canvas size
         const editedPixelData = await imageToPixelData(
-          b64,
+          urlOrB64,
           context.canvas.width,
           context.canvas.height,
         );
