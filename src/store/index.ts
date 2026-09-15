@@ -26,6 +26,8 @@ export interface AppState
   setSelection: (selection: Uint8Array | null) => void;
 
   addLayer: () => void;
+  duplicateLayer: (id: string) => void;
+  mergeDownLayer: (id: string) => void;
   removeLayer: (id: string) => void;
   updateLayer: (id: string, updates: Partial<Layer>) => void;
   updateLayerData: (id: string, data: Uint8ClampedArray) => void;
@@ -182,15 +184,118 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     }),
 
+  mergeDownLayer: (id) =>
+    set((state) => {
+      const topLayerIndex = state.layers.findIndex((l) => l.id === id);
+      if (topLayerIndex === -1 || topLayerIndex === state.layers.length - 1)
+        return state; // Cannot merge down if it's the bottom-most layer
+
+      const topLayer = state.layers[topLayerIndex];
+      const bottomLayer = state.layers[topLayerIndex + 1];
+
+      const len = topLayer.data.length;
+      const mergedData = new Uint8ClampedArray(len);
+
+      const topOpacity = topLayer.visible ? topLayer.opacity : 0;
+      const bottomOpacity = bottomLayer.visible ? bottomLayer.opacity : 0;
+
+      for (let i = 0; i < len; i += 4) {
+        const r1 = bottomLayer.data[i];
+        const g1 = bottomLayer.data[i + 1];
+        const b1 = bottomLayer.data[i + 2];
+        const a1 = (bottomLayer.data[i + 3] / 255.0) * bottomOpacity;
+
+        const r2 = topLayer.data[i];
+        const g2 = topLayer.data[i + 1];
+        const b2 = topLayer.data[i + 2];
+        const a2 = (topLayer.data[i + 3] / 255.0) * topOpacity;
+
+        const outA = a2 + a1 * (1 - a2);
+        if (outA > 0) {
+          mergedData[i] = (r2 * a2 + r1 * a1 * (1 - a2)) / outA;
+          mergedData[i + 1] = (g2 * a2 + g1 * a1 * (1 - a2)) / outA;
+          mergedData[i + 2] = (b2 * a2 + b1 * a1 * (1 - a2)) / outA;
+          mergedData[i + 3] = outA * 255;
+        } else {
+          mergedData[i] = 0;
+          mergedData[i + 1] = 0;
+          mergedData[i + 2] = 0;
+          mergedData[i + 3] = 0;
+        }
+      }
+
+      const mergedLayer: Layer = {
+        id: crypto.randomUUID(),
+        name: bottomLayer.name,
+        visible: true,
+        opacity: 1, // Reset opacity to 1 since we baked it into the alpha channel
+        data: mergedData,
+      };
+
+      const newLayers = [...state.layers];
+      newLayers.splice(topLayerIndex, 2, mergedLayer); // Replace the two layers with the merged one
+
+      return {
+        layers: newLayers,
+        activeLayerId: mergedLayer.id,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
+
+  duplicateLayer: (id) =>
+    set((state) => {
+      const layerIndex = state.layers.findIndex((l) => l.id === id);
+      if (layerIndex === -1) return state;
+
+      const layerToDuplicate = state.layers[layerIndex];
+      const duplicatedLayer: Layer = {
+        id: crypto.randomUUID(),
+        name: `${layerToDuplicate.name} (Copy)`,
+        visible: layerToDuplicate.visible,
+        opacity: layerToDuplicate.opacity,
+        data: new Uint8ClampedArray(layerToDuplicate.data),
+      };
+
+      const newLayers = [...state.layers];
+      // Insert the new layer directly above the original layer in the layer stack.
+      // Since layers are rendered from last to first (or visually top means lower index),
+      // we'll insert it at `layerIndex`.
+      newLayers.splice(layerIndex, 0, duplicatedLayer);
+
+      return {
+        layers: newLayers,
+        activeLayerId: duplicatedLayer.id,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
+
   removeLayer: (id) =>
-    set((state) => ({
-      layers: state.layers.filter((l) => l.id !== id),
-      activeLayerId:
-        state.activeLayerId === id
-          ? state.layers.find((l) => l.id !== id)?.id || null
-          : state.activeLayerId,
-      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
-    })),
+    set((state) => {
+      const layerIndex = state.layers.findIndex((l) => l.id === id);
+      if (layerIndex === -1) return state;
+      const newLayers = state.layers.filter((l) => l.id !== id);
+      let nextActiveLayerId = state.activeLayerId;
+
+      if (state.activeLayerId === id) {
+        if (newLayers.length > 0) {
+          // If the layer to delete was at the bottom (last index), select the new bottom layer
+          if (layerIndex === state.layers.length - 1) {
+            nextActiveLayerId = newLayers[newLayers.length - 1].id;
+          } else {
+            // Otherwise, select the layer that took its place (the one visually below it)
+            nextActiveLayerId = newLayers[layerIndex].id;
+          }
+        } else {
+          nextActiveLayerId = null;
+        }
+      }
+
+      return {
+        layers: newLayers,
+        activeLayerId: nextActiveLayerId,
+        metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+      };
+    }),
 
   updateLayer: (id, updates) =>
     set((state) => {

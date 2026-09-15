@@ -261,12 +261,37 @@ export function MenuBar() {
     },
   ];
 
+  const activeLayerIndex = store.activeLayerId
+    ? store.layers.findIndex((l) => l.id === store.activeLayerId)
+    : -1;
+  const canMergeDown =
+    activeLayerIndex !== -1 && activeLayerIndex < store.layers.length - 1;
+  const canDeleteLayer = store.layers.length > 1;
+
   const layerItems: MenuItem[] = [
     { label: "New Layer", onClick: store.addLayer },
-    { label: "Duplicate Layer", disabled: true },
-    { label: "Delete Layer", disabled: true },
+    {
+      label: "Duplicate Layer",
+      disabled: !store.activeLayerId,
+      onClick: () => {
+        if (store.activeLayerId) store.duplicateLayer(store.activeLayerId);
+      },
+    },
+    {
+      label: "Delete Layer",
+      disabled: !store.activeLayerId || !canDeleteLayer,
+      onClick: () => {
+        if (store.activeLayerId) store.removeLayer(store.activeLayerId);
+      },
+    },
     { divider: true },
-    { label: "Merge Down", disabled: true },
+    {
+      label: "Merge Down",
+      disabled: !store.activeLayerId || !canMergeDown,
+      onClick: () => {
+        if (store.activeLayerId) store.mergeDownLayer(store.activeLayerId);
+      },
+    },
   ];
 
   const viewItems: MenuItem[] = [
