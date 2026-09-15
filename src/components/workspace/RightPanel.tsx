@@ -23,6 +23,10 @@ export const RightPanel: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<"layers" | "ai">("layers");
   const [prompt, setPrompt] = React.useState("");
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [editingLayerId, setEditingLayerId] = React.useState<string | null>(
+    null,
+  );
+  const [editLayerName, setEditLayerName] = React.useState("");
   const store = useAppStore();
 
   const handleAskAI = async () => {
@@ -182,7 +186,46 @@ export const RightPanel: React.FC = () => {
                     >
                       {layer.visible ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
-                    <span className="text-sm truncate w-24">{layer.name}</span>
+                    {editingLayerId === layer.id ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={editLayerName}
+                        onChange={(e) => setEditLayerName(e.target.value)}
+                        onBlur={() => {
+                          if (editLayerName.trim()) {
+                            updateLayer(layer.id, {
+                              name: editLayerName.trim(),
+                            });
+                          }
+                          setEditingLayerId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (editLayerName.trim()) {
+                              updateLayer(layer.id, {
+                                name: editLayerName.trim(),
+                              });
+                            }
+                            setEditingLayerId(null);
+                          } else if (e.key === "Escape") {
+                            setEditingLayerId(null);
+                          }
+                        }}
+                        className="text-sm w-24 bg-neutral-950 border border-neutral-700 rounded px-1 outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <span
+                        className="text-sm truncate w-24 select-none"
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setEditingLayerId(layer.id);
+                          setEditLayerName(layer.name);
+                        }}
+                      >
+                        {layer.name}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1">
