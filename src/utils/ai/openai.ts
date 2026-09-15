@@ -61,12 +61,31 @@ export const createOpenAIProvider = (settings: AISettings): AIProvider => {
 
     generate: async (prompt: string, context: AIEditorContext) => {
       try {
-        const response = await openai.images.generate({
-          model: model,
-          prompt: `Create pixel art of: ${prompt}. Clean, crisp pixel art, simple background, suitable for a sprite, game asset style.`,
-          n: 1,
-          size: "1024x1024", // Standard size, we will scale down
-        });
+        let response;
+        try {
+          response = await openai.images.generate({
+            model: model,
+            prompt: `Create pixel art of: ${prompt}. Clean, crisp pixel art, simple background, suitable for a sprite, game asset style.`,
+            n: 1,
+            size: "1024x1024", // Standard size, we will scale down
+          });
+        } catch (initialError: any) {
+          // If the model doesn't exist (e.g. custom proxy that doesn't have dall-e-3), fallback to dall-e-2
+          if (
+            initialError.code === "invalid_value" ||
+            (initialError.message &&
+              initialError.message.includes("does not exist"))
+          ) {
+            response = await openai.images.generate({
+              model: "dall-e-2",
+              prompt: `Create pixel art of: ${prompt}. Clean, crisp pixel art, simple background, suitable for a sprite, game asset style.`,
+              n: 1,
+              size: "1024x1024",
+            });
+          } else {
+            throw initialError;
+          }
+        }
 
         const urlOrB64 =
           response.data?.[0]?.url || response.data?.[0]?.b64_json;
@@ -202,13 +221,37 @@ export const createOpenAIProvider = (settings: AISettings): AIProvider => {
         }
 
         // 3. Call API
-        const response = await openai.images.edit({
-          image: imageFile,
-          mask: maskFile,
-          prompt: `Pixel art style, keeping the existing pixel art structure. ${instruction}`,
-          n: 1,
-          size: "512x512", // match upscaled size
-        });
+        // For OpenAI strictly, dall-e-2 is required for edits. For custom providers, use the provided model string.
+        const editModel = settings.providerId === "openai" ? "dall-e-2" : model;
+
+        let response;
+        try {
+          response = await openai.images.edit({
+            model: editModel,
+            image: imageFile,
+            mask: maskFile,
+            prompt: `Pixel art style, keeping the existing pixel art structure. ${instruction}`,
+            n: 1,
+            size: "512x512", // match upscaled size
+          });
+        } catch (initialError: any) {
+          if (
+            initialError.code === "invalid_value" ||
+            (initialError.message &&
+              initialError.message.includes("does not exist"))
+          ) {
+            response = await openai.images.edit({
+              model: "dall-e-2",
+              image: imageFile,
+              mask: maskFile,
+              prompt: `Pixel art style, keeping the existing pixel art structure. ${instruction}`,
+              n: 1,
+              size: "512x512",
+            });
+          } else {
+            throw initialError;
+          }
+        }
 
         const urlOrB64 =
           response.data?.[0]?.url || response.data?.[0]?.b64_json;
