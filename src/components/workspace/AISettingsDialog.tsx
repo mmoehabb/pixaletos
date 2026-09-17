@@ -25,9 +25,19 @@ export const AISettingsDialog: React.FC = () => {
             <label className="text-sm text-gray-300">Provider</label>
             <select
               value={store.aiSettings.providerId}
-              onChange={(e) =>
-                store.setAISettings({ providerId: e.target.value })
-              }
+              onChange={(e) => {
+                const newProviderId = e.target.value;
+                const newModel =
+                  newProviderId === "easydiffusion"
+                    ? "sd-v1-4"
+                    : newProviderId === "openai"
+                      ? "dall-e-3"
+                      : store.aiSettings.model;
+                store.setAISettings({
+                  providerId: newProviderId,
+                  model: newModel,
+                });
+              }}
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="mock">Mock Provider (Local)</option>
@@ -35,6 +45,7 @@ export const AISettingsDialog: React.FC = () => {
               <option value="custom">
                 Custom HTTP API (OpenAI Compatible)
               </option>
+              <option value="easydiffusion">Easy Diffusion (Local)</option>
             </select>
           </div>
 
@@ -42,7 +53,11 @@ export const AISettingsDialog: React.FC = () => {
             <label className="text-sm text-gray-300">Model Name</label>
             <input
               type="text"
-              placeholder="e.g. dall-e-3"
+              placeholder={
+                store.aiSettings.providerId === "easydiffusion"
+                  ? "e.g. sd-v1-4"
+                  : "e.g. dall-e-3"
+              }
               value={store.aiSettings.model}
               onChange={(e) => store.setAISettings({ model: e.target.value })}
               disabled={store.aiSettings.providerId === "mock"}
@@ -57,7 +72,10 @@ export const AISettingsDialog: React.FC = () => {
               placeholder="Enter API key..."
               value={store.aiSettings.apiKey}
               onChange={(e) => store.setAISettings({ apiKey: e.target.value })}
-              disabled={store.aiSettings.providerId === "mock"}
+              disabled={
+                store.aiSettings.providerId === "mock" ||
+                store.aiSettings.providerId === "easydiffusion"
+              }
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
@@ -66,12 +84,19 @@ export const AISettingsDialog: React.FC = () => {
             <label className="text-sm text-gray-300">Custom Endpoint URL</label>
             <input
               type="text"
-              placeholder="https://..."
+              placeholder={
+                store.aiSettings.providerId === "easydiffusion"
+                  ? "http://127.0.0.1:9000"
+                  : "https://..."
+              }
               value={store.aiSettings.customEndpoint}
               onChange={(e) =>
                 store.setAISettings({ customEndpoint: e.target.value })
               }
-              disabled={store.aiSettings.providerId !== "custom"}
+              disabled={
+                store.aiSettings.providerId !== "custom" &&
+                store.aiSettings.providerId !== "easydiffusion"
+              }
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
