@@ -2,6 +2,7 @@ import { useAppStore } from "../../store";
 import type { AIProvider } from "../../types";
 import { MockAIProvider } from "./provider";
 import { createOpenAIProvider } from "./openai";
+import { createEasyDiffusionProvider } from "./easydiffusion";
 
 export const getActiveProvider = (): AIProvider => {
   const store = useAppStore.getState();
@@ -13,6 +14,10 @@ export const getActiveProvider = (): AIProvider => {
 
   if (settings.providerId === "openai" || settings.providerId === "custom") {
     return createOpenAIProvider(settings);
+  }
+
+  if (settings.providerId === "easydiffusion") {
+    return createEasyDiffusionProvider(settings);
   }
 
   // Fallback to mock
