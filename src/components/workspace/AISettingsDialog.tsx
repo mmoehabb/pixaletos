@@ -27,15 +27,22 @@ export const AISettingsDialog: React.FC = () => {
               value={store.aiSettings.providerId}
               onChange={(e) => {
                 const newProviderId = e.target.value;
-                const newModel =
-                  newProviderId === "easydiffusion"
-                    ? "sd-v1-4"
-                    : newProviderId === "openai"
-                      ? "dall-e-3"
-                      : store.aiSettings.model;
+                let newModel = store.aiSettings.model;
+                let newEndpoint = store.aiSettings.customEndpoint;
+
+                if (newProviderId === "easydiffusion") {
+                  newModel = "sd-v1-4";
+                } else if (newProviderId === "openai") {
+                  newModel = "dall-e-3";
+                } else if (newProviderId === "lmstudio") {
+                  newModel = "local-model";
+                  newEndpoint = "http://127.0.0.1:1234/v1";
+                }
+
                 store.setAISettings({
                   providerId: newProviderId,
                   model: newModel,
+                  customEndpoint: newEndpoint,
                 });
               }}
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -46,6 +53,7 @@ export const AISettingsDialog: React.FC = () => {
                 Custom HTTP API (OpenAI Compatible)
               </option>
               <option value="easydiffusion">Easy Diffusion (Local)</option>
+              <option value="lmstudio">LM Studio (Local)</option>
             </select>
           </div>
 
@@ -56,7 +64,9 @@ export const AISettingsDialog: React.FC = () => {
               placeholder={
                 store.aiSettings.providerId === "easydiffusion"
                   ? "e.g. sd-v1-4"
-                  : "e.g. dall-e-3"
+                  : store.aiSettings.providerId === "lmstudio"
+                    ? "e.g. local-model"
+                    : "e.g. dall-e-3"
               }
               value={store.aiSettings.model}
               onChange={(e) => store.setAISettings({ model: e.target.value })}
@@ -74,7 +84,8 @@ export const AISettingsDialog: React.FC = () => {
               onChange={(e) => store.setAISettings({ apiKey: e.target.value })}
               disabled={
                 store.aiSettings.providerId === "mock" ||
-                store.aiSettings.providerId === "easydiffusion"
+                store.aiSettings.providerId === "easydiffusion" ||
+                store.aiSettings.providerId === "lmstudio"
               }
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
@@ -87,7 +98,9 @@ export const AISettingsDialog: React.FC = () => {
               placeholder={
                 store.aiSettings.providerId === "easydiffusion"
                   ? "http://127.0.0.1:9000"
-                  : "https://..."
+                  : store.aiSettings.providerId === "lmstudio"
+                    ? "http://127.0.0.1:1234/v1"
+                    : "https://..."
               }
               value={store.aiSettings.customEndpoint}
               onChange={(e) =>
@@ -95,7 +108,8 @@ export const AISettingsDialog: React.FC = () => {
               }
               disabled={
                 store.aiSettings.providerId !== "custom" &&
-                store.aiSettings.providerId !== "easydiffusion"
+                store.aiSettings.providerId !== "easydiffusion" &&
+                store.aiSettings.providerId !== "lmstudio"
               }
               className="w-full rounded bg-[#3c3c3c] px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
