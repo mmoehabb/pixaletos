@@ -47,10 +47,10 @@
 
 ## Phase 6 — Polish
 
-- [ ] Perform UI/UX responsive polish and accessibility passes
+- [x] Perform UI/UX responsive polish and accessibility passes
 - [ ] Implement comprehensive export/import testing
 - [ ] Implement autosave and crash recovery
 - [ ] Provide customizable keyboard shortcuts
 - [ ] Optimize rendering and application performance
 - [ ] Handle offline behaviors and error states smoothly
-- Fix Undo/Redo state desync when undoing a global transform after switching keyframes
+- [x] Fix Undo/Redo state desync when undoing a global transform after switching keyframes

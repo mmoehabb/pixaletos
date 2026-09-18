@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Toolbar } from "./components/workspace/Toolbar";
 import { PixelCanvas } from "./components/workspace/PixelCanvas";
 import { RightPanel } from "./components/workspace/RightPanel";
@@ -9,6 +10,7 @@ import { AskAIDialog } from "./components/workspace/AskAIDialog";
 import { useAppStore } from "./store";
 
 function App() {
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const {
     addLayer,
     layers,
@@ -43,13 +45,28 @@ function App() {
           <span>Pixaletos</span>
         </div>
         <MenuBar />
-        <div className="ml-auto rounded-full border border-indigo-400/15 bg-indigo-400/8 px-2.5 py-1 text-[11px] font-medium text-indigo-200">
-          Pixel editor
+        <div className="ml-auto flex items-center gap-2">
+          <div className="hidden sm:block rounded-full border border-indigo-400/15 bg-indigo-400/8 px-2.5 py-1 text-[11px] font-medium text-indigo-200">
+            Pixel editor
+          </div>
+          <button
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            className="md:hidden flex items-center justify-center rounded p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white"
+            aria-label={
+              isRightPanelOpen ? "Close right panel" : "Open right panel"
+            }
+          >
+            {isRightPanelOpen ? (
+              <PanelRightClose size={18} />
+            ) : (
+              <PanelRightOpen size={18} />
+            )}
+          </button>
         </div>
       </header>
 
       {/* Main Workspace */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         <Toolbar />
 
         <div className="flex-1 flex flex-col relative overflow-hidden bg-neutral-950">
@@ -57,7 +74,23 @@ function App() {
           {isTimelineVisible && <TimelineDock />}
         </div>
 
-        <RightPanel />
+        {/* Right panel overlay for mobile */}
+        {isRightPanelOpen && (
+          <div
+            className="md:hidden absolute inset-0 z-40 bg-black/50"
+            onClick={() => setIsRightPanelOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+        <div
+          className={`absolute inset-y-0 right-0 z-50 transform transition-transform duration-200 ease-in-out md:relative md:transform-none ${
+            isRightPanelOpen
+              ? "translate-x-0"
+              : "translate-x-full md:translate-x-0"
+          }`}
+        >
+          <RightPanel />
+        </div>
       </div>
 
       <AskAIDialog />

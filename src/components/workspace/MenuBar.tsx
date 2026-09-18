@@ -131,6 +131,7 @@ export function MenuBar() {
       layers: cloneLayers(freshStore.layers),
       keyframes: cloneKeyframes(freshStore.keyframes),
       activeLayerId: freshStore.activeLayerId,
+      activeKeyframeId: freshStore.activeKeyframeId,
     };
 
     const afterKeyframes = before.keyframes.map((kf) => {
@@ -154,6 +155,7 @@ export function MenuBar() {
       layers: afterLayers,
       keyframes: afterKeyframes,
       activeLayerId: freshStore.activeLayerId,
+      activeKeyframeId: freshStore.activeKeyframeId,
     };
 
     const apply = (snapshot: typeof before) =>
@@ -164,6 +166,7 @@ export function MenuBar() {
           cloneLayers(snapshot.layers),
           cloneKeyframes(snapshot.keyframes),
           snapshot.activeLayerId,
+          snapshot.activeKeyframeId,
         );
 
     store.executeCommand({

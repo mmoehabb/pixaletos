@@ -182,7 +182,7 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
+    <div className="w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 flex-shrink-0 z-10 overflow-y-auto no-scrollbar">
       <div className="flex flex-col mb-4 w-full px-2">
         {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}
