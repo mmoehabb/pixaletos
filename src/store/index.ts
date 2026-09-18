@@ -51,6 +51,7 @@ export interface AppState
     layers: Layer[],
     keyframes: Keyframe[],
     activeLayerId: string | null,
+    activeKeyframeId?: string | null,
   ) => void;
 
   setAISettings: (settings: Partial<AISettings>) => void;
@@ -384,12 +385,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       future: [],
     }),
 
-  replaceCanvas: (dimensions, layers, keyframes, activeLayerId) =>
+  replaceCanvas: (
+    dimensions,
+    layers,
+    keyframes,
+    activeLayerId,
+    activeKeyframeId,
+  ) =>
     set((state) => ({
       dimensions,
       layers,
       keyframes,
       activeLayerId,
+      ...(activeKeyframeId !== undefined && { activeKeyframeId }),
       // A selection mask is dimension-dependent. Keeping the old mask would
       // block drawing outside its former bounds after a resize or rotation.
       selection: null,

@@ -182,15 +182,15 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 flex-shrink-0 z-10">
-      <div className="flex flex-col mb-4 w-full px-2">
+    <div className="w-full flex-row overflow-x-auto border-t md:w-16 bg-neutral-900 md:border-r md:border-t-0 border-neutral-800 flex md:flex-col items-center md:py-4 px-2 md:px-0 py-2 flex-shrink-0 z-10 md:overflow-y-auto no-scrollbar md:overflow-x-visible">
+      <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}
         {renderTool("rotate", <RotateCw size={20} />, "Rotate (R)")}
       </div>
 
-      <label className="mb-4 flex flex-col items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
-        Size
+      <label className="flex-shrink-0 flex flex-row md:flex-col items-center gap-2 md:gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500 md:mb-4 mx-2 md:mx-0">
+        <span className="hidden md:inline">Size</span>
         <input
           type="number"
           min="1"
@@ -206,31 +206,31 @@ export const Toolbar: React.FC = () => {
         />
       </label>
 
-      <div className="w-10 h-px bg-neutral-800 mb-4" />
+      <div className="w-px h-8 md:w-10 md:h-px bg-neutral-800 mx-2 md:mx-0 md:mb-4 flex-shrink-0" />
 
-      <div className="flex flex-col mb-4 w-full px-2">
+      <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderTool("pencil", <Pencil size={20} />, "Pencil (P)")}
         {renderTool("eraser", <Eraser size={20} />, "Eraser (E)")}
         {renderTool("fill", <PaintBucket size={20} />, "Fill (F)")}
         {renderTool("eyedropper", <Pipette size={20} />, "Eyedropper (I)")}
       </div>
 
-      <div className="w-10 h-px bg-neutral-800 mb-4" />
+      <div className="w-px h-8 md:w-10 md:h-px bg-neutral-800 mx-2 md:mx-0 md:mb-4 flex-shrink-0" />
 
-      <div className="flex flex-col mb-4 w-full px-2">
+      <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderTool("line", <Minus size={20} />, "Line (L)")}
         {renderTool("rectangle", <Square size={20} />, "Rectangle (U)")}
         {renderTool("ellipse", <Circle size={20} />, "Ellipse (O)")}
       </div>
 
-      <div className="w-10 h-px bg-neutral-800 mb-4" />
+      <div className="w-px h-8 md:w-10 md:h-px bg-neutral-800 mx-2 md:mx-0 md:mb-4 flex-shrink-0" />
 
-      <div className="flex flex-col mb-4 w-full px-2">
+      <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderTool("pan", <Hand size={20} />, "Pan (H)")}
         {renderTool("zoom", <ZoomIn size={20} />, "Zoom (Z)")}
       </div>
 
-      <div className="mt-auto flex flex-col items-center gap-3 mb-2">
+      <div className="ml-auto md:mt-auto md:ml-0 flex flex-row md:flex-col items-center gap-3 md:mb-2 px-2 md:px-0 flex-shrink-0">
         <div className="relative w-8 h-8">
           <input
             type="color"

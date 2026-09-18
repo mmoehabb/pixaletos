@@ -1650,7 +1650,7 @@ export const PixelCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="flex items-center justify-center w-full h-full bg-neutral-900 rounded-md overflow-hidden p-4 relative select-none touch-none"
+      className="flex items-center justify-center w-full h-full bg-neutral-900 rounded-md overflow-hidden p-1 sm:p-4 relative select-none touch-none"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

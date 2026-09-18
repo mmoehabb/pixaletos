@@ -63,6 +63,7 @@ export function TransformDialog({
       layers: cloneLayers(freshStore.layers),
       keyframes: cloneKeyframes(freshStore.keyframes),
       activeLayerId: freshStore.activeLayerId,
+      activeKeyframeId: freshStore.activeKeyframeId,
     };
 
     const afterKeyframes = before.keyframes.map((kf) => {
@@ -91,6 +92,7 @@ export function TransformDialog({
       layers: afterLayers,
       keyframes: afterKeyframes,
       activeLayerId: before.activeLayerId,
+      activeKeyframeId: before.activeKeyframeId,
     };
     const apply = (snapshot: typeof before) =>
       useAppStore
@@ -100,6 +102,7 @@ export function TransformDialog({
           cloneLayers(snapshot.layers),
           cloneKeyframes(snapshot.keyframes),
           snapshot.activeLayerId,
+          snapshot.activeKeyframeId,
         );
     const command: Command = {
       name: title,
