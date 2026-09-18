@@ -32,7 +32,7 @@ function App() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#111318] font-sans text-neutral-200">
       <KeyboardShortcuts />
       <header className="z-20 flex h-12 flex-shrink-0 items-center border-b border-white/8 bg-[#191c23] px-4 shadow-sm">
-        <div className="mr-8 flex items-center gap-2.5 text-sm font-semibold tracking-tight text-white">
+        <div className="hidden md:flex mr-8 items-center gap-2.5 text-sm font-semibold tracking-tight text-white">
           <span
             aria-hidden="true"
             className="grid h-6 w-6 grid-cols-2 gap-0.5 rounded-md bg-indigo-500 p-1 shadow-[0_0_18px_rgba(99,102,241,0.35)]"
@@ -66,7 +66,7 @@ function App() {
       </header>
 
       {/* Main Workspace */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-col-reverse md:flex-row flex-1 overflow-hidden relative">
         <Toolbar />
 
         <div className="flex-1 flex flex-col relative overflow-hidden bg-neutral-950">
