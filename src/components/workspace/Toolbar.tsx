@@ -189,7 +189,7 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex-row overflow-x-auto border-t md:w-16 bg-neutral-900 md:border-r md:border-t-0 border-neutral-800 flex md:flex-col items-center md:py-4 px-2 md:px-0 py-2 flex-shrink-0 z-10 md:overflow-y-auto no-scrollbar md:overflow-x-visible">
+    <div className="w-full flex-row overflow-x-auto border-t md:w-16 bg-neutral-900 md:border-r md:border-t-0 border-neutral-800 flex md:flex-col items-center md:py-4 px-2 md:px-0 py-2 flex-shrink-0 z-50 md:overflow-y-visible no-scrollbar md:overflow-x-visible">
       <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}
