@@ -16,9 +16,11 @@ import {
   Minus,
   Pipette,
   ArrowRightLeft,
+  Palette as PaletteIcon,
 } from "lucide-react";
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
+import { PalettePopover } from "./PalettePopover";
 
 interface ToolButtonProps {
   tool: Tool;
@@ -64,6 +66,9 @@ export const Toolbar: React.FC = () => {
   const [selectMenuOpen, setSelectMenuOpen] = useState(false);
   const selectMenuRef = useRef<HTMLDivElement>(null);
   const [lastSelectTool, setLastSelectTool] = useState<Tool>("select");
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const paletteTriggerRef = useRef<HTMLButtonElement>(null as unknown as HTMLButtonElement);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -230,7 +235,27 @@ export const Toolbar: React.FC = () => {
         {renderTool("zoom", <ZoomIn size={20} />, "Zoom (Z)")}
       </div>
 
-      <div className="ml-auto md:mt-auto md:ml-0 flex flex-row md:flex-col items-center gap-3 md:mb-2 px-2 md:px-0 flex-shrink-0">
+      <div className="ml-auto md:mt-auto md:ml-0 flex flex-row md:flex-col items-center gap-3 md:mb-2 px-2 md:px-0 flex-shrink-0 relative">
+        <button
+          ref={paletteTriggerRef}
+          onClick={() => setPaletteOpen(!paletteOpen)}
+          className={`p-2 rounded-md transition-colors ${
+            paletteOpen
+              ? "bg-indigo-600 text-white"
+              : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+          }`}
+          title="Color Palettes"
+        >
+          <PaletteIcon size={20} />
+        </button>
+
+        {paletteOpen && (
+          <PalettePopover
+            onClose={() => setPaletteOpen(false)}
+            triggerRef={paletteTriggerRef}
+          />
+        )}
+
         <div className="relative w-8 h-8">
           <input
             type="color"
