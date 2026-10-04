@@ -8,6 +8,7 @@ import { MenuBar } from "./components/workspace/MenuBar";
 import { TimelineDock } from "./components/workspace/TimelineDock";
 import { AskAIDialog } from "./components/workspace/AskAIDialog";
 import { useAppStore } from "./store";
+import packageJson from "../package.json";
 
 function App() {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
@@ -42,7 +43,12 @@ function App() {
             <span className="rounded-[1px] bg-indigo-200" />
             <span className="rounded-[1px] bg-white" />
           </span>
-          <span>Pixaletos</span>
+          <span>
+            Pixaletos
+            <span className="ml-1.5 text-xs text-neutral-400 font-normal">
+              v{packageJson.version}
+            </span>
+          </span>
         </div>
         <MenuBar />
         <div className="ml-auto flex items-center gap-2">
