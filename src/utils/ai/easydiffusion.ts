@@ -66,7 +66,7 @@ const pollEasyDiffusionTask = async (
               lastValidJson = lineData;
               break;
             }
-          } catch (e) {
+          } catch {
             // ignore parse error on incomplete lines
           }
         }

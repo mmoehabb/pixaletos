@@ -73,6 +73,13 @@ export interface HistoryState {
   future: Command[];
 }
 
+export interface Palette {
+  id: string;
+  name: string;
+  colors: string[]; // Hex color codes
+  isDefault?: boolean; // If true, the palette cannot be edited or deleted
+}
+
 export interface SerializedLayer {
   id: string;
   name: string;
