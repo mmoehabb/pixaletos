@@ -28,7 +28,6 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
   const [editName, setEditName] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
 
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -46,7 +45,8 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
     };
   }, [onClose, triggerRef]);
 
-  const activePalette = palettes.find((p) => p.id === activePaletteId) || palettes[0];
+  const activePalette =
+    palettes.find((p) => p.id === activePaletteId) || palettes[0];
   const safeActivePaletteId = activePalette?.id;
 
   const handleColorClick = (color: string, e: React.MouseEvent) => {

@@ -68,7 +68,9 @@ export const Toolbar: React.FC = () => {
   const [lastSelectTool, setLastSelectTool] = useState<Tool>("select");
 
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const paletteTriggerRef = useRef<HTMLButtonElement>(null as unknown as HTMLButtonElement);
+  const paletteTriggerRef = useRef<HTMLButtonElement>(
+    null as unknown as HTMLButtonElement,
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
