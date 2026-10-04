@@ -82,7 +82,7 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
   return (
     <div
       ref={popoverRef}
-      className="absolute left-full ml-2 bottom-0 md:left-full md:top-auto md:bottom-12 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg p-3 w-64 z-50 flex flex-col gap-3"
+      className="absolute left-full ml-2 bottom-0 md:left-full md:top-auto md:bottom-12 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg p-3 w-64 z-[9999] flex flex-col gap-3"
       style={{
         // Give it a max height and let the colors scroll if there are too many
         maxHeight: "400px",
