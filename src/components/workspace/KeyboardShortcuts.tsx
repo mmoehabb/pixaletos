@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
-import type { Tool } from "../../types";
+import type { Tool, Command } from "../../types";
 import {
   exportToPNG,
   importPNG,
@@ -125,6 +125,51 @@ export const KeyboardShortcuts: React.FC = () => {
         if (e.code === "Space" && !e.repeat) {
           toolBeforePan.current = useAppStore.getState().currentTool;
           setTool("pan");
+          e.preventDefault();
+        }
+
+        if (e.key === "Backspace" || e.key === "Delete") {
+          const state = useAppStore.getState();
+          const { selection, activeLayerId, layers } = state;
+
+          if (selection && activeLayerId) {
+            const activeLayer = layers.find((l) => l.id === activeLayerId);
+            if (activeLayer) {
+              const oldData = new Uint8ClampedArray(activeLayer.data);
+              const newData = new Uint8ClampedArray(activeLayer.data);
+
+              let hasChanges = false;
+              for (let i = 0; i < selection.length; i++) {
+                if (selection[i] === 1) {
+                  const pixelIndex = i * 4;
+                  if (newData[pixelIndex + 3] !== 0) {
+                    newData[pixelIndex] = 0;
+                    newData[pixelIndex + 1] = 0;
+                    newData[pixelIndex + 2] = 0;
+                    newData[pixelIndex + 3] = 0;
+                    hasChanges = true;
+                  }
+                }
+              }
+
+              if (hasChanges) {
+                const command: Command = {
+                  name: "Erase Selection",
+                  undo: () => {
+                    useAppStore
+                      .getState()
+                      .updateLayerData(activeLayerId, oldData);
+                  },
+                  redo: () => {
+                    useAppStore
+                      .getState()
+                      .updateLayerData(activeLayerId, newData);
+                  },
+                };
+                state.executeCommand(command);
+              }
+            }
+          }
           e.preventDefault();
         }
       }
