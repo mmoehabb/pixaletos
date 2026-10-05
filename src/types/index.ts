@@ -57,6 +57,7 @@ export interface EditorState {
   foregroundColor: string;
   backgroundColor: string;
   brushSize: number;
+  pixelPerfect: boolean;
   zoom: number;
   pan: { x: number; y: number };
   selection: Uint8Array | null;
