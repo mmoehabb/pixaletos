@@ -17,6 +17,7 @@ import {
   Pipette,
   ArrowRightLeft,
   Palette as PaletteIcon,
+  Sparkles,
 } from "lucide-react";
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
@@ -58,9 +59,11 @@ export const Toolbar: React.FC = () => {
     foregroundColor,
     backgroundColor,
     brushSize,
+    pixelPerfect,
     setForegroundColor,
     setBackgroundColor,
     setBrushSize,
+    setPixelPerfect,
   } = useAppStore();
 
   const [selectMenuOpen, setSelectMenuOpen] = useState(false);
@@ -196,22 +199,36 @@ export const Toolbar: React.FC = () => {
         {renderTool("rotate", <RotateCw size={20} />, "Rotate (R)")}
       </div>
 
-      <label className="flex-shrink-0 flex flex-row md:flex-col items-center gap-2 md:gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500 md:mb-4 mx-2 md:mx-0">
-        <span className="hidden md:inline">Size</span>
-        <input
-          type="number"
-          min="1"
-          max="64"
-          value={brushSize}
-          onChange={(event) =>
-            setBrushSize(
-              Math.max(1, Math.min(64, Number(event.target.value) || 1)),
-            )
-          }
-          className="w-10 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-xs text-neutral-200 outline-none focus:border-indigo-500"
-          title="Brush size"
-        />
-      </label>
+      <div className="flex flex-row md:flex-col items-center gap-2 md:gap-2 mx-2 md:mx-0 md:mb-4 flex-shrink-0">
+        <label className="flex flex-row md:flex-col items-center gap-2 md:gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+          <span className="hidden md:inline">Size</span>
+          <input
+            type="number"
+            min="1"
+            max="64"
+            value={brushSize}
+            onChange={(event) =>
+              setBrushSize(
+                Math.max(1, Math.min(64, Number(event.target.value) || 1)),
+              )
+            }
+            className="w-10 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-xs text-neutral-200 outline-none focus:border-indigo-500"
+            title="Brush size"
+          />
+        </label>
+
+        <button
+          onClick={() => setPixelPerfect(!pixelPerfect)}
+          className={`p-1.5 rounded transition-colors flex items-center justify-center ${
+            pixelPerfect
+              ? "bg-indigo-600 text-white"
+              : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+          }`}
+          title={`Pixel Perfect: ${pixelPerfect ? "On" : "Off"}`}
+        >
+          <Sparkles size={16} />
+        </button>
+      </div>
 
       <div className="w-px h-8 md:w-10 md:h-px bg-neutral-800 mx-2 md:mx-0 md:mb-4 flex-shrink-0" />
 

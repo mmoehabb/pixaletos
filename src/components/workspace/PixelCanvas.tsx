@@ -227,6 +227,7 @@ export const PixelCanvas: React.FC = () => {
     activeLayerId,
     foregroundColor,
     brushSize,
+    pixelPerfect,
     executeCommand,
     updateLayerData,
     selection,
@@ -246,6 +247,7 @@ export const PixelCanvas: React.FC = () => {
   const lastPanPosition = useRef<{ x: number; y: number } | null>(null);
   const startDrawPos = useRef<{ x: number; y: number } | null>(null);
   const lastDrawPos = useRef<{ x: number; y: number } | null>(null);
+  const pixelPerfectPoints = useRef<{ x: number; y: number }[]>([]);
 
   const previewDataRef = useRef<Uint8ClampedArray>(
     new Uint8ClampedArray(dimensions.width * dimensions.height * 4),
@@ -479,8 +481,54 @@ export const PixelCanvas: React.FC = () => {
     const sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;
 
+    const isPixelPerfect =
+      pixelPerfect &&
+      brushSize === 1 &&
+      (currentTool === "pencil" || currentTool === "eraser");
+
     while (true) {
-      drawBrush(data, x0, y0, color);
+      if (isPixelPerfect) {
+        const pts = pixelPerfectPoints.current;
+        if (
+          pts.length === 0 ||
+          pts[pts.length - 1].x !== x0 ||
+          pts[pts.length - 1].y !== y0
+        ) {
+          pts.push({ x: x0, y: y0 });
+          drawBrush(data, x0, y0, color);
+
+          if (pts.length >= 3) {
+            const p1 = pts[pts.length - 3];
+            const p2 = pts[pts.length - 2];
+            const p3 = pts[pts.length - 1];
+
+            // Check if they form an L-shape
+            if (Math.abs(p1.x - p3.x) === 1 && Math.abs(p1.y - p3.y) === 1) {
+              if (
+                (p2.x === p1.x && p2.y === p3.y) ||
+                (p2.x === p3.x && p2.y === p1.y)
+              ) {
+                // Remove the corner pixel from tracked path
+                pts.splice(pts.length - 2, 1);
+
+                // Restore pixel in data and remove from strokeDiff
+                const pxIdx = (p2.y * dimensions.width + p2.x) * 4;
+                const diff = strokeDiff.current.get(pxIdx);
+                if (diff) {
+                  data[pxIdx] = diff.oldColor.r;
+                  data[pxIdx + 1] = diff.oldColor.g;
+                  data[pxIdx + 2] = diff.oldColor.b;
+                  data[pxIdx + 3] = diff.oldColor.a;
+                  strokeDiff.current.delete(pxIdx);
+                }
+              }
+            }
+          }
+        }
+      } else {
+        drawBrush(data, x0, y0, color);
+      }
+
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
       if (e2 > -dy) {
@@ -972,6 +1020,7 @@ export const PixelCanvas: React.FC = () => {
 
     startDrawPos.current = { x, y };
     lastDrawPos.current = { x, y };
+    pixelPerfectPoints.current = [];
 
     const color =
       currentTool === "eraser"
