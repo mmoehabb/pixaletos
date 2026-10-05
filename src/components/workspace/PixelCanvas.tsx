@@ -466,7 +466,6 @@ export const PixelCanvas: React.FC = () => {
     }
   };
 
-
   const applyFilterBrush = (
     data: Uint8ClampedArray,
     x: number,
@@ -489,18 +488,25 @@ export const PixelCanvas: React.FC = () => {
     const brushStartX = x + start - 1;
     const brushStartY = y + start - 1;
 
-    const originalPixels = new Uint8ClampedArray(brushAreaWidth * brushAreaHeight * 4);
-    for(let by = 0; by < brushAreaHeight; by++) {
-      for(let bx = 0; bx < brushAreaWidth; bx++) {
+    const originalPixels = new Uint8ClampedArray(
+      brushAreaWidth * brushAreaHeight * 4,
+    );
+    for (let by = 0; by < brushAreaHeight; by++) {
+      for (let bx = 0; bx < brushAreaWidth; bx++) {
         const cx = brushStartX + bx;
         const cy = brushStartY + by;
-        if (cx >= 0 && cx < dimensions.width && cy >= 0 && cy < dimensions.height) {
+        if (
+          cx >= 0 &&
+          cx < dimensions.width &&
+          cy >= 0 &&
+          cy < dimensions.height
+        ) {
           const ci = (cy * dimensions.width + cx) * 4;
           const bi = (by * brushAreaWidth + bx) * 4;
           originalPixels[bi] = data[ci];
-          originalPixels[bi+1] = data[ci+1];
-          originalPixels[bi+2] = data[ci+2];
-          originalPixels[bi+3] = data[ci+3];
+          originalPixels[bi + 1] = data[ci + 1];
+          originalPixels[bi + 2] = data[ci + 2];
+          originalPixels[bi + 3] = data[ci + 3];
         }
       }
     }
@@ -510,68 +516,81 @@ export const PixelCanvas: React.FC = () => {
         const cx = x + offsetX;
         const cy = y + offsetY;
 
-        if (cx < 0 || cx >= dimensions.width || cy < 0 || cy >= dimensions.height) continue;
-        if (hasValidSelection && !selection![cy * dimensions.width + cx]) continue;
+        if (
+          cx < 0 ||
+          cx >= dimensions.width ||
+          cy < 0 ||
+          cy >= dimensions.height
+        )
+          continue;
+        if (hasValidSelection && !selection![cy * dimensions.width + cx])
+          continue;
 
         // Skip transparent pixels
-        const centerBi = ((offsetY - start + 1) * brushAreaWidth + (offsetX - start + 1)) * 4;
+        const centerBi =
+          ((offsetY - start + 1) * brushAreaWidth + (offsetX - start + 1)) * 4;
         if (originalPixels[centerBi + 3] === 0) continue;
 
-        let r = 0, g = 0, b = 0, a = originalPixels[centerBi + 3];
+        let r = 0,
+          g = 0,
+          b = 0,
+          a = originalPixels[centerBi + 3];
         let count = 0;
 
         if (isSharpen) {
-           const kernel = [
-             0, -1, 0,
-            -1,  5, -1,
-             0, -1, 0
-           ];
-           let idx = 0;
-           for(let ky = -1; ky <= 1; ky++) {
-             for(let kx = -1; kx <= 1; kx++) {
-                const kWeight = kernel[idx++];
-                if (kWeight === 0) continue;
+          const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
+          let idx = 0;
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const kWeight = kernel[idx++];
+              if (kWeight === 0) continue;
 
-                const bi = ((offsetY - start + 1 + ky) * brushAreaWidth + (offsetX - start + 1 + kx)) * 4;
+              const bi =
+                ((offsetY - start + 1 + ky) * brushAreaWidth +
+                  (offsetX - start + 1 + kx)) *
+                4;
 
-                // If the neighbor is out of bounds or transparent, we fallback to the center pixel's color
-                // to avoid edge artifacts and darkening
-                let pr, pg, pb;
-                if (originalPixels[bi+3] > 0) {
-                   pr = originalPixels[bi];
-                   pg = originalPixels[bi+1];
-                   pb = originalPixels[bi+2];
-                } else {
-                   pr = originalPixels[centerBi];
-                   pg = originalPixels[centerBi+1];
-                   pb = originalPixels[centerBi+2];
-                }
+              // If the neighbor is out of bounds or transparent, we fallback to the center pixel's color
+              // to avoid edge artifacts and darkening
+              let pr, pg, pb;
+              if (originalPixels[bi + 3] > 0) {
+                pr = originalPixels[bi];
+                pg = originalPixels[bi + 1];
+                pb = originalPixels[bi + 2];
+              } else {
+                pr = originalPixels[centerBi];
+                pg = originalPixels[centerBi + 1];
+                pb = originalPixels[centerBi + 2];
+              }
 
-                r += pr * kWeight;
-                g += pg * kWeight;
-                b += pb * kWeight;
-             }
-           }
+              r += pr * kWeight;
+              g += pg * kWeight;
+              b += pb * kWeight;
+            }
+          }
         } else {
-           // Blur (3x3 average)
-           for(let ky = -1; ky <= 1; ky++) {
-             for(let kx = -1; kx <= 1; kx++) {
-                const bi = ((offsetY - start + 1 + ky) * brushAreaWidth + (offsetX - start + 1 + kx)) * 4;
-                if (originalPixels[bi+3] > 0) {
-                   r += originalPixels[bi];
-                   g += originalPixels[bi+1];
-                   b += originalPixels[bi+2];
-                   count++;
-                }
-             }
-           }
-           if (count > 0) {
-              r /= count;
-              g /= count;
-              b /= count;
-           } else {
-              continue; // should not happen since center is opaque
-           }
+          // Blur (3x3 average)
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const bi =
+                ((offsetY - start + 1 + ky) * brushAreaWidth +
+                  (offsetX - start + 1 + kx)) *
+                4;
+              if (originalPixels[bi + 3] > 0) {
+                r += originalPixels[bi];
+                g += originalPixels[bi + 1];
+                b += originalPixels[bi + 2];
+                count++;
+              }
+            }
+          }
+          if (count > 0) {
+            r /= count;
+            g /= count;
+            b /= count;
+          } else {
+            continue; // should not happen since center is opaque
+          }
         }
 
         r = Math.min(255, Math.max(0, r));
@@ -1175,9 +1194,7 @@ export const PixelCanvas: React.FC = () => {
         ? { r: 0, g: 0, b: 0, a: 0 }
         : hexToRgb(foregroundColor);
 
-    if (
-      ["pencil", "eraser", "blur", "sharpen"].includes(currentTool)
-    ) {
+    if (["pencil", "eraser", "blur", "sharpen"].includes(currentTool)) {
       if (currentTool === "blur" || currentTool === "sharpen") {
         applyFilterBrush(layer.data, x, y, currentTool === "sharpen");
       } else {
@@ -1426,9 +1443,7 @@ export const PixelCanvas: React.FC = () => {
         ? { r: 0, g: 0, b: 0, a: 0 }
         : hexToRgb(foregroundColor);
 
-    if (
-      ["pencil", "eraser", "blur", "sharpen"].includes(currentTool)
-    ) {
+    if (["pencil", "eraser", "blur", "sharpen"].includes(currentTool)) {
       if (currentTool === "blur" || currentTool === "sharpen") {
         applyFilterBrushLine(
           layer.data,
@@ -1436,7 +1451,7 @@ export const PixelCanvas: React.FC = () => {
           prev.y,
           x,
           y,
-          currentTool === "sharpen"
+          currentTool === "sharpen",
         );
       } else {
         drawBrushLine(layer.data, prev.x, prev.y, x, y, color);
@@ -1839,9 +1854,7 @@ export const PixelCanvas: React.FC = () => {
         return;
       }
 
-      if (
-        ["pencil", "eraser", "blur", "sharpen"].includes(currentTool)
-      ) {
+      if (["pencil", "eraser", "blur", "sharpen"].includes(currentTool)) {
         const diffEntries = Array.from(strokeDiff.current.entries());
         commitDrawing(activeLayerId, diffEntries);
         strokeDiff.current.clear();
