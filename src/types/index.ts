@@ -25,6 +25,8 @@ export interface ProjectState {
 export type Tool =
   | "pencil"
   | "eraser"
+  | "blur"
+  | "sharpen"
   | "fill"
   | "line"
   | "rectangle"

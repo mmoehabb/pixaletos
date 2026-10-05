@@ -466,6 +466,154 @@ export const PixelCanvas: React.FC = () => {
     }
   };
 
+
+  const applyFilterBrush = (
+    data: Uint8ClampedArray,
+    x: number,
+    y: number,
+    isSharpen: boolean,
+  ) => {
+    const start = -Math.floor((brushSize - 1) / 2);
+    const end = start + brushSize - 1;
+
+    // We need to operate on a snapshot of the data for convolution to avoid cascading effects within the same brush stroke
+    // But since creating a full snapshot per brush is expensive, we only snapshot the kernel area per pixel
+    // Actually, simple in-place is usually fine for these tools and faster, let's stick to in-place for simplicity
+    // unless it causes bad artifacts.
+
+    // Wait, to do it correctly and not use partially updated pixels, we should read from a copy of the layer data,
+    // or just accept the slight cascading effect for a brush tool which is often acceptable.
+    // Let's create a temporary array for just the brush area to read from.
+    const brushAreaWidth = brushSize + 2; // +2 for 3x3 kernel boundary
+    const brushAreaHeight = brushSize + 2;
+    const brushStartX = x + start - 1;
+    const brushStartY = y + start - 1;
+
+    const originalPixels = new Uint8ClampedArray(brushAreaWidth * brushAreaHeight * 4);
+    for(let by = 0; by < brushAreaHeight; by++) {
+      for(let bx = 0; bx < brushAreaWidth; bx++) {
+        const cx = brushStartX + bx;
+        const cy = brushStartY + by;
+        if (cx >= 0 && cx < dimensions.width && cy >= 0 && cy < dimensions.height) {
+          const ci = (cy * dimensions.width + cx) * 4;
+          const bi = (by * brushAreaWidth + bx) * 4;
+          originalPixels[bi] = data[ci];
+          originalPixels[bi+1] = data[ci+1];
+          originalPixels[bi+2] = data[ci+2];
+          originalPixels[bi+3] = data[ci+3];
+        }
+      }
+    }
+
+    for (let offsetY = start; offsetY <= end; offsetY++) {
+      for (let offsetX = start; offsetX <= end; offsetX++) {
+        const cx = x + offsetX;
+        const cy = y + offsetY;
+
+        if (cx < 0 || cx >= dimensions.width || cy < 0 || cy >= dimensions.height) continue;
+        if (hasValidSelection && !selection![cy * dimensions.width + cx]) continue;
+
+        // Skip transparent pixels
+        const centerBi = ((offsetY - start + 1) * brushAreaWidth + (offsetX - start + 1)) * 4;
+        if (originalPixels[centerBi + 3] === 0) continue;
+
+        let r = 0, g = 0, b = 0, a = originalPixels[centerBi + 3];
+        let count = 0;
+
+        if (isSharpen) {
+           const kernel = [
+             0, -1, 0,
+            -1,  5, -1,
+             0, -1, 0
+           ];
+           let idx = 0;
+           for(let ky = -1; ky <= 1; ky++) {
+             for(let kx = -1; kx <= 1; kx++) {
+                const kWeight = kernel[idx++];
+                if (kWeight === 0) continue;
+
+                const bi = ((offsetY - start + 1 + ky) * brushAreaWidth + (offsetX - start + 1 + kx)) * 4;
+
+                // If the neighbor is out of bounds or transparent, we fallback to the center pixel's color
+                // to avoid edge artifacts and darkening
+                let pr, pg, pb;
+                if (originalPixels[bi+3] > 0) {
+                   pr = originalPixels[bi];
+                   pg = originalPixels[bi+1];
+                   pb = originalPixels[bi+2];
+                } else {
+                   pr = originalPixels[centerBi];
+                   pg = originalPixels[centerBi+1];
+                   pb = originalPixels[centerBi+2];
+                }
+
+                r += pr * kWeight;
+                g += pg * kWeight;
+                b += pb * kWeight;
+             }
+           }
+        } else {
+           // Blur (3x3 average)
+           for(let ky = -1; ky <= 1; ky++) {
+             for(let kx = -1; kx <= 1; kx++) {
+                const bi = ((offsetY - start + 1 + ky) * brushAreaWidth + (offsetX - start + 1 + kx)) * 4;
+                if (originalPixels[bi+3] > 0) {
+                   r += originalPixels[bi];
+                   g += originalPixels[bi+1];
+                   b += originalPixels[bi+2];
+                   count++;
+                }
+             }
+           }
+           if (count > 0) {
+              r /= count;
+              g /= count;
+              b /= count;
+           } else {
+              continue; // should not happen since center is opaque
+           }
+        }
+
+        r = Math.min(255, Math.max(0, r));
+        g = Math.min(255, Math.max(0, g));
+        b = Math.min(255, Math.max(0, b));
+
+        const targetColor = { r, g, b, a };
+        drawPixel(data, cx, cy, targetColor, true);
+      }
+    }
+  };
+
+  const applyFilterBrushLine = (
+    data: Uint8ClampedArray,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    isSharpen: boolean,
+  ) => {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+
+    while (true) {
+      applyFilterBrush(data, x0, y0, isSharpen);
+
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x0 += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
+  };
+
   /** Interpolate brush stamps so rapid pointer movements never leave gaps. */
   const drawBrushLine = (
     data: Uint8ClampedArray,
@@ -1027,8 +1175,14 @@ export const PixelCanvas: React.FC = () => {
         ? { r: 0, g: 0, b: 0, a: 0 }
         : hexToRgb(foregroundColor);
 
-    if (currentTool === "pencil" || currentTool === "eraser") {
-      drawBrush(layer.data, x, y, color);
+    if (
+      ["pencil", "eraser", "blur", "sharpen"].includes(currentTool)
+    ) {
+      if (currentTool === "blur" || currentTool === "sharpen") {
+        applyFilterBrush(layer.data, x, y, currentTool === "sharpen");
+      } else {
+        drawBrush(layer.data, x, y, color);
+      }
       updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
     } else if (currentTool === "fill") {
       floodFill(layer.data, x, y, color, true);
@@ -1272,8 +1426,21 @@ export const PixelCanvas: React.FC = () => {
         ? { r: 0, g: 0, b: 0, a: 0 }
         : hexToRgb(foregroundColor);
 
-    if (currentTool === "pencil" || currentTool === "eraser") {
-      drawBrushLine(layer.data, prev.x, prev.y, x, y, color);
+    if (
+      ["pencil", "eraser", "blur", "sharpen"].includes(currentTool)
+    ) {
+      if (currentTool === "blur" || currentTool === "sharpen") {
+        applyFilterBrushLine(
+          layer.data,
+          prev.x,
+          prev.y,
+          x,
+          y,
+          currentTool === "sharpen"
+        );
+      } else {
+        drawBrushLine(layer.data, prev.x, prev.y, x, y, color);
+      }
       updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
       lastDrawPos.current = { x, y };
     } else if (
@@ -1672,7 +1839,9 @@ export const PixelCanvas: React.FC = () => {
         return;
       }
 
-      if (currentTool === "pencil" || currentTool === "eraser") {
+      if (
+        ["pencil", "eraser", "blur", "sharpen"].includes(currentTool)
+      ) {
         const diffEntries = Array.from(strokeDiff.current.entries());
         commitDrawing(activeLayerId, diffEntries);
         strokeDiff.current.clear();
