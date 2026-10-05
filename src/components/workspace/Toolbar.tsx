@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Pencil,
   Eraser,
+  Droplets,
+  Zap,
   PaintBucket,
   MousePointer2,
   Wand2,
@@ -235,6 +237,8 @@ export const Toolbar: React.FC = () => {
       <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderTool("pencil", <Pencil size={20} />, "Pencil (P)")}
         {renderTool("eraser", <Eraser size={20} />, "Eraser (E)")}
+        {renderTool("blur", <Droplets size={20} />, "Blur")}
+        {renderTool("sharpen", <Zap size={20} />, "Sharpen")}
         {renderTool("fill", <PaintBucket size={20} />, "Fill (F)")}
         {renderTool("eyedropper", <Pipette size={20} />, "Eyedropper (I)")}
       </div>
