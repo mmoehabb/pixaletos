@@ -24,6 +24,8 @@ import {
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
 import { PalettePopover } from "./PalettePopover";
+import { SketchPicker } from "react-color";
+import type { RGBColor } from "react-color";
 
 interface ToolButtonProps {
   tool: Tool;
@@ -78,6 +80,30 @@ export const Toolbar: React.FC = () => {
   const paletteTriggerRef = useRef<HTMLButtonElement>(
     null as unknown as HTMLButtonElement,
   );
+
+  const [fgPickerOpen, setFgPickerOpen] = useState(false);
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
+
+  const rgbaToHex8 = (rgba: RGBColor) => {
+    const toHex = (c: number) => {
+      const hex = Math.round(c).toString(16);
+      return hex.length === 1 ? "0" + hex : hex;
+    };
+    const a = rgba.a !== undefined ? Math.round(rgba.a * 255) : 255;
+    return `#${toHex(rgba.r)}${toHex(rgba.g)}${toHex(rgba.b)}${toHex(a)}`;
+  };
+
+  const hexToRgba = (hex: string): RGBColor => {
+    const result =
+      /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})?$/i.exec(hex);
+    if (!result) return { r: 0, g: 0, b: 0, a: 1 };
+    return {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+      a: result[4] ? parseInt(result[4], 16) / 255 : 1,
+    };
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -298,22 +324,53 @@ export const Toolbar: React.FC = () => {
         )}
 
         <div className="relative w-8 h-8">
-          <input
-            type="color"
-            value={backgroundColor}
-            onChange={(e) => setBackgroundColor(e.target.value)}
-            className="absolute bottom-0 right-0 w-6 h-6 p-0 border-0 rounded cursor-pointer shadow-sm"
+          <div
+            onClick={() => setBgPickerOpen(!bgPickerOpen)}
+            className="absolute bottom-0 right-0 w-6 h-6 p-0 border border-neutral-700 rounded cursor-pointer shadow-sm"
             style={{ backgroundColor: backgroundColor }}
             title="Background Color"
           />
-          <input
-            type="color"
-            value={foregroundColor}
-            onChange={(e) => setForegroundColor(e.target.value)}
-            className="absolute top-0 left-0 w-6 h-6 p-0 border-0 rounded cursor-pointer border border-neutral-700 shadow-sm"
+          {bgPickerOpen && (
+            <div className="absolute left-full bottom-0 ml-4 z-[60]">
+              <div
+                className="fixed inset-0"
+                onClick={() => setBgPickerOpen(false)}
+              />
+              <div className="relative">
+                <SketchPicker
+                  color={hexToRgba(backgroundColor)}
+                  onChange={(color) =>
+                    setBackgroundColor(rgbaToHex8(color.rgb))
+                  }
+                  disableAlpha={false}
+                />
+              </div>
+            </div>
+          )}
+
+          <div
+            onClick={() => setFgPickerOpen(!fgPickerOpen)}
+            className="absolute top-0 left-0 w-6 h-6 p-0 border border-neutral-700 rounded cursor-pointer shadow-sm z-10"
             style={{ backgroundColor: foregroundColor }}
             title="Foreground Color"
           />
+          {fgPickerOpen && (
+            <div className="absolute left-full bottom-0 ml-4 z-[60]">
+              <div
+                className="fixed inset-0"
+                onClick={() => setFgPickerOpen(false)}
+              />
+              <div className="relative">
+                <SketchPicker
+                  color={hexToRgba(foregroundColor)}
+                  onChange={(color) =>
+                    setForegroundColor(rgbaToHex8(color.rgb))
+                  }
+                  disableAlpha={false}
+                />
+              </div>
+            </div>
+          )}
         </div>
         <button
           onClick={() => {
