@@ -103,7 +103,31 @@ export function MenuBar() {
   );
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isSpritesheetDialogOpen, setIsSpritesheetDialogOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const store = useAppStore();
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   const cloneLayers = (layers: Layer[]) =>
     layers.map((layer) => ({
@@ -311,6 +335,10 @@ export function MenuBar() {
     { label: "Reset Zoom", onClick: () => store.setZoom(1) },
     { divider: true },
     { label: "Toggle Grid", disabled: true },
+    {
+      label: isFullscreen ? "Exit Full Screen" : "Full Screen",
+      onClick: toggleFullscreen,
+    },
   ];
 
   const aiItems: MenuItem[] = [
