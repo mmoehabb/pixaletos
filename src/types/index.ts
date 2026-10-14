@@ -59,6 +59,7 @@ export interface EditorState {
   foregroundColor: string;
   backgroundColor: string;
   brushSize: number;
+  brushOpacity: number;
   pixelPerfect: boolean;
   zoom: number;
   pan: { x: number; y: number };

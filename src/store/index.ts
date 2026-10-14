@@ -21,6 +21,7 @@ export interface AppState
   setForegroundColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
   setBrushSize: (size: number) => void;
+  setBrushOpacity: (opacity: number) => void;
   setPixelPerfect: (enabled: boolean) => void;
   setZoom: (zoom: number) => void;
   setPan: (pan: { x: number; y: number }) => void;
@@ -99,6 +100,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   foregroundColor: "#000000",
   backgroundColor: "#ffffff",
   brushSize: 1,
+  brushOpacity: 100,
   pixelPerfect: false,
   zoom: 1,
   pan: { x: 0, y: 0 },
@@ -166,6 +168,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setForegroundColor: (color) => set({ foregroundColor: color }),
   setBackgroundColor: (color) => set({ backgroundColor: color }),
   setBrushSize: (size) => set({ brushSize: size }),
+  setBrushOpacity: (opacity) => set({ brushOpacity: opacity }),
   setPixelPerfect: (enabled) => set({ pixelPerfect: enabled }),
   setZoom: (zoom) => set({ zoom }),
   setPan: (pan) => set({ pan }),
