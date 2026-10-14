@@ -418,9 +418,15 @@ export const PixelCanvas: React.FC = () => {
       // We assume color.a is 255 for drawing tools since hexToRgb sets a: 255
       const newAlpha = alpha + (oldA / 255) * (1 - alpha);
       if (newAlpha > 0) {
-        targetR = Math.round((color.r * alpha + oldR * (oldA / 255) * (1 - alpha)) / newAlpha);
-        targetG = Math.round((color.g * alpha + oldG * (oldA / 255) * (1 - alpha)) / newAlpha);
-        targetB = Math.round((color.b * alpha + oldB * (oldA / 255) * (1 - alpha)) / newAlpha);
+        targetR = Math.round(
+          (color.r * alpha + oldR * (oldA / 255) * (1 - alpha)) / newAlpha,
+        );
+        targetG = Math.round(
+          (color.g * alpha + oldG * (oldA / 255) * (1 - alpha)) / newAlpha,
+        );
+        targetB = Math.round(
+          (color.b * alpha + oldB * (oldA / 255) * (1 - alpha)) / newAlpha,
+        );
         targetA = Math.round(newAlpha * 255);
       } else {
         targetA = 0;
