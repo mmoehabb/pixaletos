@@ -23,10 +23,17 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
 
   const { foregroundColor, setForegroundColor, setBackgroundColor } =
     useAppStore();
-  const [activePaletteId, setActivePaletteId] = useState<string>("pico-8");
+  const [activePaletteId, setActivePaletteId] = useState<string>(() => {
+    return localStorage.getItem("pixalitos_active_palette") || "pico-8";
+  });
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  const setActivePaletteIdWithStorage = (id: string) => {
+    setActivePaletteId(id);
+    localStorage.setItem("pixalitos_active_palette", id);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -60,7 +67,7 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
 
   const handleAddPalette = () => {
     const id = addPalette("New Palette", []);
-    setActivePaletteId(id);
+    setActivePaletteIdWithStorage(id);
   };
 
   const handleSaveName = () => {
@@ -95,7 +102,7 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
         <select
           value={safeActivePaletteId}
           onChange={(e) => {
-            setActivePaletteId(e.target.value);
+            setActivePaletteIdWithStorage(e.target.value);
             setIsEditingName(false);
           }}
           className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm text-neutral-200 outline-none focus:border-indigo-500"
@@ -160,6 +167,7 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
                 onClick={() => {
                   if (confirm(`Delete palette "${activePalette.name}"?`)) {
                     deletePalette(activePalette.id);
+                    setActivePaletteIdWithStorage("pico-8");
                   }
                 }}
                 className="text-neutral-500 hover:text-red-400 p-1 rounded"
