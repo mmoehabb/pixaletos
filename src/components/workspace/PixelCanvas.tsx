@@ -227,6 +227,7 @@ export const PixelCanvas: React.FC = () => {
     activeLayerId,
     foregroundColor,
     brushSize,
+    brushOpacity,
     pixelPerfect,
     executeCommand,
     updateLayerData,
@@ -395,29 +396,62 @@ export const PixelCanvas: React.FC = () => {
       oldB = data[i + 2],
       oldA = data[i + 3];
 
+    let targetR = color.r;
+    let targetG = color.g;
+    let targetB = color.b;
+    let targetA = color.a;
+
+    // Handle eraser alpha correctly
+    if (currentTool === "eraser") {
+      targetR = oldR;
+      targetG = oldG;
+      targetB = oldB;
+      targetA = Math.max(0, oldA - Math.round(255 * (brushOpacity / 100)));
+      if (targetA === 0) {
+        targetR = 0;
+        targetG = 0;
+        targetB = 0;
+      }
+    } else if (brushOpacity < 100) {
+      // Alpha blending
+      const alpha = brushOpacity / 100;
+      // We assume color.a is 255 for drawing tools since hexToRgb sets a: 255
+      const newAlpha = alpha + (oldA / 255) * (1 - alpha);
+      if (newAlpha > 0) {
+        targetR = Math.round((color.r * alpha + oldR * (oldA / 255) * (1 - alpha)) / newAlpha);
+        targetG = Math.round((color.g * alpha + oldG * (oldA / 255) * (1 - alpha)) / newAlpha);
+        targetB = Math.round((color.b * alpha + oldB * (oldA / 255) * (1 - alpha)) / newAlpha);
+        targetA = Math.round(newAlpha * 255);
+      } else {
+        targetA = 0;
+      }
+    }
+
     if (
-      oldR === color.r &&
-      oldG === color.g &&
-      oldB === color.b &&
-      oldA === color.a
+      oldR === targetR &&
+      oldG === targetG &&
+      oldB === targetB &&
+      oldA === targetA
     )
       return;
+
+    const finalColor = { r: targetR, g: targetG, b: targetB, a: targetA };
 
     if (trackDiff) {
       if (!strokeDiff.current.has(i)) {
         strokeDiff.current.set(i, {
           oldColor: { r: oldR, g: oldG, b: oldB, a: oldA },
-          newColor: color,
+          newColor: finalColor,
         });
       } else {
-        strokeDiff.current.get(i)!.newColor = color;
+        strokeDiff.current.get(i)!.newColor = finalColor;
       }
     }
 
-    data[i] = color.r;
-    data[i + 1] = color.g;
-    data[i + 2] = color.b;
-    data[i + 3] = color.a;
+    data[i] = targetR;
+    data[i + 1] = targetG;
+    data[i + 2] = targetB;
+    data[i + 3] = targetA;
   };
 
   const drawLine = (
@@ -829,6 +863,7 @@ export const PixelCanvas: React.FC = () => {
   ) => {
     const targetColor = getPixel(data, startX, startY);
     if (
+      brushOpacity === 100 &&
       targetColor.r === color.r &&
       targetColor.g === color.g &&
       targetColor.b === color.b &&
@@ -836,9 +871,12 @@ export const PixelCanvas: React.FC = () => {
     )
       return;
 
+    const visited = new Uint8Array(dimensions.width * dimensions.height);
+
     const match = (x: number, y: number) => {
       if (hasValidSelection && !selection[y * dimensions.width + x])
         return false;
+      if (visited[y * dimensions.width + x]) return false;
       const p = getPixel(data, x, y);
       return (
         p.r === targetColor.r &&
@@ -858,6 +896,7 @@ export const PixelCanvas: React.FC = () => {
         y < dimensions.height &&
         match(x, y)
       ) {
+        visited[y * dimensions.width + x] = 1;
         drawPixel(data, x, y, color, trackDiff);
         stack.push([x + 1, y]);
         stack.push([x - 1, y]);

@@ -61,10 +61,12 @@ export const Toolbar: React.FC = () => {
     foregroundColor,
     backgroundColor,
     brushSize,
+    brushOpacity,
     pixelPerfect,
     setForegroundColor,
     setBackgroundColor,
     setBrushSize,
+    setBrushOpacity,
     setPixelPerfect,
   } = useAppStore();
 
@@ -216,6 +218,22 @@ export const Toolbar: React.FC = () => {
             }
             className="w-10 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-xs text-neutral-200 outline-none focus:border-indigo-500"
             title="Brush size"
+          />
+        </label>
+        <label className="flex flex-row md:flex-col items-center gap-2 md:gap-1 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+          <span className="hidden md:inline">Opacity</span>
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={brushOpacity}
+            onChange={(event) =>
+              setBrushOpacity(
+                Math.max(1, Math.min(100, Number(event.target.value) || 1)),
+              )
+            }
+            className="w-10 rounded border border-neutral-700 bg-neutral-800 px-1 py-0.5 text-center text-xs text-neutral-200 outline-none focus:border-indigo-500"
+            title="Brush opacity (%)"
           />
         </label>
 
