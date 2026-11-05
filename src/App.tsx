@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { BrushControls } from "./components/workspace/BrushControls";
 import { Toolbar } from "./components/workspace/Toolbar";
 import { PixelCanvas } from "./components/workspace/PixelCanvas";
 import { RightPanel } from "./components/workspace/RightPanel";
@@ -47,8 +48,8 @@ function App() {
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#111318] font-sans text-neutral-200">
       <KeyboardShortcuts />
-      <header className="z-20 flex h-12 flex-shrink-0 items-center border-b border-white/8 bg-[#191c23] px-4 shadow-sm">
-        <div className="hidden md:flex mr-8 items-center gap-2.5 text-sm font-semibold tracking-tight text-white">
+      <header className="z-20 flex flex-wrap flex-shrink-0 items-center border-b border-white/8 bg-[#191c23] px-2 sm:px-4 shadow-sm">
+        <div className="hidden md:flex h-12 mr-4 xl:mr-8 items-center gap-2.5 text-sm font-semibold tracking-tight text-white">
           <span
             aria-hidden="true"
             className="grid h-6 w-6 grid-cols-2 gap-0.5 rounded-md bg-indigo-500 p-1 shadow-[0_0_18px_rgba(99,102,241,0.35)]"
@@ -66,7 +67,8 @@ function App() {
           </span>
         </div>
         <MenuBar />
-        <div className="ml-auto flex items-center gap-2">
+        <BrushControls />
+        <div className="ml-auto flex h-12 items-center gap-2">
           <div className="hidden sm:block rounded-full border border-indigo-400/15 bg-indigo-400/8 px-2.5 py-1 text-[11px] font-medium text-indigo-200">
             Pixel editor
           </div>
