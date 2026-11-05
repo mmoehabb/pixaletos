@@ -145,3 +145,37 @@ test("AI edit undo selects its originating frame", () => {
   useAppStore.getState().selectKeyframe(second);
   assert.equal(useAppStore.getState().layers[0].data[3], 255);
 });
+
+test("cut history remains immutable across strokes and repeated undo and redo", async () => {
+  const { copySelection } = await vite.ssrLoadModule("/src/utils/clipboard.ts");
+  useAppStore.getState().createNewProject(2, 2);
+  const id = useAppStore.getState().activeLayerId;
+  const initial = new Uint8ClampedArray(16);
+  initial[3] = 255;
+  useAppStore.getState().updateLayerData(id, initial);
+  const mask = new Uint8Array(4);
+  mask[0] = 1;
+  useAppStore.getState().setSelection(mask);
+  copySelection(true);
+  useAppStore.getState().layers[0].data[7] = 255;
+  useAppStore.getState().executeCommand({
+    name: "Tool: pencil",
+    redo: () => {},
+    undo: () => {
+      const data = new Uint8ClampedArray(useAppStore.getState().layers[0].data);
+      data[7] = 0;
+      useAppStore.getState().updateLayerData(id, data);
+    },
+  });
+  useAppStore.getState().undo();
+  useAppStore.getState().undo();
+  assert.equal(useAppStore.getState().layers[0].data[3], 255);
+  useAppStore.getState().redo();
+  assert.equal(useAppStore.getState().layers[0].data[3], 0);
+  assert.equal(useAppStore.getState().layers[0].data[7], 0);
+  useAppStore.getState().undo();
+  useAppStore.getState().layers[0].data[11] = 255;
+  useAppStore.getState().redo();
+  useAppStore.getState().undo();
+  assert.equal(useAppStore.getState().layers[0].data[11], 0);
+});

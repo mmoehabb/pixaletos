@@ -25,8 +25,14 @@ export function copySelection(cut = false) {
     const id = layer.id;
     state.executeCommand({
       name: "Cut Selection",
-      undo: () => useAppStore.getState().updateLayerData(id, original),
-      redo: () => useAppStore.getState().updateLayerData(id, remaining),
+      undo: () =>
+        useAppStore
+          .getState()
+          .updateLayerData(id, new Uint8ClampedArray(original)),
+      redo: () =>
+        useAppStore
+          .getState()
+          .updateLayerData(id, new Uint8ClampedArray(remaining)),
     });
   }
 }
