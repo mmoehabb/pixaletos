@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "../../store";
 import type { Tool } from "../../types";
+import { ColorPopover } from "./ColorPopover";
 import { PalettePopover } from "./PalettePopover";
 import { SketchPicker } from "react-color";
 import type { RGBColor } from "react-color";
@@ -83,6 +84,7 @@ export const Toolbar: React.FC = () => {
     null as unknown as HTMLButtonElement,
   );
 
+  const colorTriggerRef = useRef<HTMLDivElement>(null);
   const [fgPickerOpen, setFgPickerOpen] = useState(false);
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
 
@@ -327,14 +329,9 @@ export const Toolbar: React.FC = () => {
           <PaletteIcon size={20} />
         </button>
 
-        {paletteOpen && (
-          <PalettePopover
-            onClose={() => setPaletteOpen(false)}
-            triggerRef={paletteTriggerRef}
-          />
-        )}
+        {paletteOpen && <PalettePopover triggerRef={paletteTriggerRef} />}
 
-        <div className="relative w-8 h-8">
+        <div ref={colorTriggerRef} className="relative w-8 h-8">
           <div
             onClick={() => setBgPickerOpen(!bgPickerOpen)}
             className="absolute bottom-0 right-0 w-6 h-6 p-0 border border-neutral-700 rounded cursor-pointer shadow-sm"
@@ -342,7 +339,7 @@ export const Toolbar: React.FC = () => {
             title="Background Color"
           />
           {bgPickerOpen && (
-            <div className="absolute left-full bottom-0 ml-4 z-[60]">
+            <ColorPopover anchorRef={colorTriggerRef}>
               <div
                 className="fixed inset-0"
                 onClick={() => setBgPickerOpen(false)}
@@ -356,7 +353,7 @@ export const Toolbar: React.FC = () => {
                   disableAlpha={false}
                 />
               </div>
-            </div>
+            </ColorPopover>
           )}
 
           <div
@@ -366,7 +363,7 @@ export const Toolbar: React.FC = () => {
             title="Foreground Color"
           />
           {fgPickerOpen && (
-            <div className="absolute left-full bottom-0 ml-4 z-[60]">
+            <ColorPopover anchorRef={colorTriggerRef}>
               <div
                 className="fixed inset-0"
                 onClick={() => setFgPickerOpen(false)}
@@ -380,7 +377,7 @@ export const Toolbar: React.FC = () => {
                   disableAlpha={false}
                 />
               </div>
-            </div>
+            </ColorPopover>
           )}
         </div>
         <button
