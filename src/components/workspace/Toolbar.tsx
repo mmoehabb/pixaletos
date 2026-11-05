@@ -329,12 +329,7 @@ export const Toolbar: React.FC = () => {
           <PaletteIcon size={20} />
         </button>
 
-        {paletteOpen && (
-          <PalettePopover
-            onClose={() => setPaletteOpen(false)}
-            triggerRef={paletteTriggerRef}
-          />
-        )}
+        {paletteOpen && <PalettePopover triggerRef={paletteTriggerRef} />}
 
         <div ref={colorTriggerRef} className="relative w-8 h-8">
           <div

@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { ColorPopover } from "./ColorPopover";
 import { Plus, Trash2, Edit2, X } from "lucide-react";
 import { usePalettes } from "../../hooks/usePalettes";
 import { useAppStore } from "../../store";
 
 interface PalettePopoverProps {
-  onClose: () => void;
   triggerRef: React.RefObject<HTMLButtonElement>;
 }
 
 export const PalettePopover: React.FC<PalettePopoverProps> = ({
-  onClose,
   triggerRef,
 }) => {
   const {
@@ -29,29 +27,11 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
   });
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const setActivePaletteIdWithStorage = (id: string) => {
     setActivePaletteId(id);
     localStorage.setItem("pixalitos_active_palette", id);
   };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(event.target as Node)
-      ) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onClose, triggerRef]);
 
   const activePalette =
     palettes.find((p) => p.id === activePaletteId) || palettes[0];
@@ -90,7 +70,6 @@ export const PalettePopover: React.FC<PalettePopoverProps> = ({
   return (
     <ColorPopover anchorRef={triggerRef}>
       <div
-        ref={popoverRef}
         className="bg-neutral-800 border border-neutral-700 rounded-md shadow-lg p-3 w-64 max-w-full flex flex-col gap-3"
         style={{
           // Give it a max height and let the colors scroll if there are too many
