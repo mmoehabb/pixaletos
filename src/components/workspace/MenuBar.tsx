@@ -1,3 +1,5 @@
+import { InputSettingsDialog } from "./InputSettingsDialog";
+import { useInputSettings } from "../../input/settings";
 import { copySelection, pasteSelection } from "../../utils/clipboard";
 import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "../../store";
@@ -407,7 +409,16 @@ export function MenuBar() {
 
   const menus = [
     { label: "File", items: fileItems },
-    { label: "Edit", items: editItems },
+    {
+      label: "Edit",
+      items: [
+        ...editItems,
+        {
+          label: "Tablet & Input...",
+          onClick: () => useInputSettings.getState().setOpen(true),
+        },
+      ],
+    },
     { label: "Image", items: imageItems },
     { label: "Layer", items: layerItems },
     { label: "View", items: viewItems },
@@ -547,6 +558,7 @@ export function MenuBar() {
         <SpritesheetDialog onClose={() => setIsSpritesheetDialogOpen(false)} />
       )}
       <AISettingsDialog />
+      <InputSettingsDialog />
     </>
   );
 }

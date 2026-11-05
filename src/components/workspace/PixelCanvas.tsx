@@ -1,3 +1,10 @@
+import {
+  runAction,
+  useInputSettings,
+  usePressureSettings,
+  pressureFactor,
+  penButton,
+} from "../../input/settings";
 import React, {
   useRef,
   useEffect,
@@ -222,12 +229,12 @@ export const PixelCanvas: React.FC = () => {
     layers,
     zoom,
     pan,
-    currentTool,
+    currentTool: selectedTool,
     setPan,
     activeLayerId,
     foregroundColor,
-    brushSize,
-    brushOpacity,
+    brushSize: baseBrushSize,
+    brushOpacity: baseBrushOpacity,
     pixelPerfect,
     showGrid,
     executeCommand,
@@ -242,8 +249,40 @@ export const PixelCanvas: React.FC = () => {
     activeKeyframeId,
   } = useAppStore();
 
+  const pressureConfig = usePressureSettings((state) => state.settings);
+  const pressure = useRef(1);
+  const owner = useRef<number | null>(null);
+  const buttonState = useRef(-1);
+  const previousPressure = useRef(1);
+  const transitioning = useRef(false);
+  let brushSize = baseBrushSize;
+  let brushOpacity = baseBrushOpacity;
+  const applyPressure = (e: React.PointerEvent<HTMLDivElement>) => {
+    previousPressure.current = pressure.current;
+    pressure.current =
+      e.pointerType === "pen" ? pressureFactor(e.pressure, pressureConfig) : 1;
+    const supportsPressure =
+      currentTool === "pencil" || currentTool === "eraser";
+    brushSize =
+      supportsPressure && pressureConfig.size
+        ? Math.max(1, Math.round(baseBrushSize * pressure.current))
+        : baseBrushSize;
+    brushOpacity =
+      supportsPressure && pressureConfig.opacity
+        ? baseBrushOpacity * pressure.current
+        : baseBrushOpacity;
+  };
+  const penTool = useRef<Tool | null>(null);
+  let currentTool = penTool.current || selectedTool;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isPanning, setIsPanning] = useState(false);
+  const panningRef = useRef(false);
+  const [, renderPanning] = useState(false);
+  let isPanning = panningRef.current;
+  const setIsPanning = (value: boolean) => {
+    isPanning = value;
+    panningRef.current = value;
+    renderPanning(value);
+  };
   const [pointerPosition, setPointerPosition] = useState<{
     x: number;
     y: number;
@@ -257,7 +296,12 @@ export const PixelCanvas: React.FC = () => {
     const rect = e.currentTarget.getBoundingClientRect();
     setPointerPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
-  const [isDrawing, setIsDrawing] = useState(false);
+  const drawingRef = useRef(false);
+  let isDrawing = drawingRef.current;
+  const setIsDrawing = (value: boolean) => {
+    isDrawing = value;
+    drawingRef.current = value;
+  };
   const [activeSelection, setActiveSelection] = useState<Uint8Array | null>(
     null,
   );
@@ -712,12 +756,22 @@ export const PixelCanvas: React.FC = () => {
     const sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;
 
+    const totalSteps = Math.max(dx, dy);
+    let step = 0;
+    const endPressure = pressure.current;
     const isPixelPerfect =
       pixelPerfect &&
-      brushSize === 1 &&
+      baseBrushSize === 1 &&
       (currentTool === "pencil" || currentTool === "eraser");
 
     while (true) {
+      const t = totalSteps ? step / totalSteps : 1;
+      const strength =
+        previousPressure.current + (endPressure - previousPressure.current) * t;
+      if (pressureConfig.size)
+        brushSize = Math.max(1, Math.round(baseBrushSize * strength));
+      if (pressureConfig.opacity) brushOpacity = baseBrushOpacity * strength;
+      step++;
       if (isPixelPerfect) {
         const pts = pixelPerfectPoints.current;
         if (
@@ -1053,16 +1107,39 @@ export const PixelCanvas: React.FC = () => {
   const lassoPoints = useRef<{ x: number; y: number }[]>([]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (useInputSettings.getState().open || isPlaying) return;
+    if (owner.current !== null && owner.current !== e.pointerId) return;
+    owner.current = e.pointerId;
+    buttonState.current = penButton(e.buttons);
     trackPointer(e);
-    if (isPlaying) return;
-    if (e.button === 1 || currentTool === "pan") {
+    if (e.pointerType === "pen") {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const action =
+        useInputSettings.getState().bindings[`pen:${penButton(e.buttons)}`];
+      if (action === "none") return;
+      if (action === "pan" || action === "eraser" || action === "eyedropper") {
+        penTool.current = action;
+        currentTool = action;
+      } else if (action) {
+        runAction(action);
+        return;
+      }
+    }
+    applyPressure(e);
+    previousPressure.current = pressure.current;
+    if ((e.pointerType !== "pen" && e.button === 1) || currentTool === "pan") {
       setIsPanning(true);
       lastPanPosition.current = { x: e.clientX, y: e.clientY };
       e.currentTarget.setPointerCapture(e.pointerId);
       return;
     }
 
-    if (e.button !== 0) return;
+    if (
+      e.pointerType === "pen"
+        ? !(e.buttons & 1) && !penTool.current
+        : e.button !== 0
+    )
+      return;
 
     if (currentTool === "zoom") {
       if (e.altKey) {
@@ -1286,6 +1363,23 @@ export const PixelCanvas: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (owner.current !== null && owner.current !== e.pointerId) return;
+    if (
+      e.pointerType === "pen" &&
+      owner.current === e.pointerId &&
+      penButton(e.buttons) !== buttonState.current
+    ) {
+      transitioning.current = true;
+      handlePointerUp(e);
+      transitioning.current = false;
+      penTool.current = null;
+      currentTool = selectedTool;
+      if (e.buttons) handlePointerDown(e);
+      else if (e.currentTarget.hasPointerCapture(e.pointerId))
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      return;
+    }
+    applyPressure(e);
     trackPointer(e);
     if (isPlaying && isPanning) return;
     if (isPanning && lastPanPosition.current) {
@@ -1570,17 +1664,28 @@ export const PixelCanvas: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isPlaying && !isPanning) return;
+    if (owner.current !== e.pointerId) return;
+    owner.current = null;
+    buttonState.current = -1;
+
     if (isPanning) {
       setIsPanning(false);
       lastPanPosition.current = null;
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (
+        !transitioning.current &&
+        e.currentTarget.hasPointerCapture(e.pointerId)
+      )
+        e.currentTarget.releasePointerCapture(e.pointerId);
       return;
     }
 
     if (isDrawing) {
       setIsDrawing(false);
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (
+        !transitioning.current &&
+        e.currentTarget.hasPointerCapture(e.pointerId)
+      )
+        e.currentTarget.releasePointerCapture(e.pointerId);
 
       if (
         (currentTool === "select" ||
@@ -1970,6 +2075,31 @@ export const PixelCanvas: React.FC = () => {
     hoverX < dimensions.width &&
     hoverY >= 0 &&
     hoverY < dimensions.height;
+  const finishInteraction = useRef<() => void>(() => {});
+  finishInteraction.current = () => {
+    if (owner.current !== null && containerRef.current) {
+      handlePointerUp({
+        pointerId: owner.current,
+        currentTarget: containerRef.current,
+      } as React.PointerEvent<HTMLDivElement>);
+    }
+    penTool.current = null;
+    setIsDrawing(false);
+    setIsPanning(false);
+  };
+  useEffect(() => {
+    const finish = () => finishInteraction.current();
+    const visibility = () => {
+      if (document.hidden) finish();
+    };
+    window.addEventListener("blur", finish);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.removeEventListener("blur", finish);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, []);
+
   const brushOffset = -Math.floor((brushSize - 1) / 2);
   const cursorLeft = canvasLeft + (hoverX + brushOffset) * zoom;
   const cursorTop = canvasTop + (hoverY + brushOffset) * zoom;
@@ -1985,10 +2115,23 @@ export const PixelCanvas: React.FC = () => {
       onPointerLeave={() => setPointerPosition(null)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
+      onPointerUp={(e) => {
+        if (owner.current !== e.pointerId) return;
+        handlePointerUp(e);
+        penTool.current = null;
+      }}
+      onLostPointerCapture={(e) => {
+        if (owner.current !== e.pointerId) return;
+        handlePointerUp(e);
+        penTool.current = null;
+        setIsDrawing(false);
+        setIsPanning(false);
+      }}
       onPointerCancel={(e) => {
+        if (owner.current !== e.pointerId) return;
         setPointerPosition(null);
         handlePointerUp(e);
+        penTool.current = null;
       }}
       onContextMenu={(e) => e.preventDefault()}
     >

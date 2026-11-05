@@ -1,3 +1,4 @@
+import { keyInput, runAction, useInputSettings } from "../../input/settings";
 import { copySelection, pasteSelection } from "../../utils/clipboard";
 import React, { useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
@@ -10,6 +11,20 @@ export const KeyboardShortcuts: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        useInputSettings.getState().open ||
+        document.querySelector('[aria-modal="true"]')
+      )
+        return;
+      const target = e.target as HTMLElement;
+      if (target?.closest("input, textarea, select, [contenteditable=true]"))
+        return;
+      const mapped = useInputSettings.getState().bindings[keyInput(e)];
+      if (mapped) {
+        e.preventDefault();
+        if (!e.repeat || mapped.startsWith("brush")) runAction(mapped);
+        return;
+      }
       // Don't trigger shortcuts if user is typing in an input field
       if (
         document.activeElement?.tagName === "INPUT" ||
@@ -178,7 +193,18 @@ export const KeyboardShortcuts: React.FC = () => {
       e.preventDefault();
     };
 
+    const restorePan = () => {
+      if (toolBeforePan.current) {
+        setTool(toolBeforePan.current);
+        toolBeforePan.current = null;
+      }
+    };
     const handleWheel = (e: WheelEvent) => {
+      if (
+        useInputSettings.getState().open ||
+        document.querySelector('[aria-modal="true"]')
+      )
+        return;
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
@@ -192,11 +218,13 @@ export const KeyboardShortcuts: React.FC = () => {
       }
     };
 
+    window.addEventListener("blur", restorePan);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
+      window.removeEventListener("blur", restorePan);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("wheel", handleWheel);
