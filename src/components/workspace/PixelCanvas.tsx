@@ -240,6 +240,19 @@ export const PixelCanvas: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [pointerPosition, setPointerPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const trackPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "touch") {
+      setPointerPosition(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPointerPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
   const [isDrawing, setIsDrawing] = useState(false);
   const [activeSelection, setActiveSelection] = useState<Uint8Array | null>(
     null,
@@ -1030,6 +1043,7 @@ export const PixelCanvas: React.FC = () => {
   const lassoPoints = useRef<{ x: number; y: number }[]>([]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    trackPointer(e);
     if (isPlaying) return;
     if (e.button === 1 || currentTool === "pan") {
       setIsPanning(true);
@@ -1262,6 +1276,7 @@ export const PixelCanvas: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    trackPointer(e);
     if (isPlaying && isPanning) return;
     if (isPanning && lastPanPosition.current) {
       const dx = e.clientX - lastPanPosition.current.x;
@@ -1924,14 +1939,47 @@ export const PixelCanvas: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dimensions, layers.length, previewDataVersion]);
 
+  // Use the same pixel snapping and even-size offset as drawBrush. Keep the
+  // overlay in screen space so its two-tone outline stays visible at any zoom.
+  const canvasLeft = pan.x + (dimensions.width * (1 - zoom)) / 2;
+  const canvasTop = pan.y + (dimensions.height * (1 - zoom)) / 2;
+  const hoverX = pointerPosition
+    ? Math.floor((pointerPosition.x - canvasLeft) / zoom)
+    : -1;
+  const hoverY = pointerPosition
+    ? Math.floor((pointerPosition.y - canvasTop) / zoom)
+    : -1;
+  const showBrushCursor =
+    pointerPosition !== null &&
+    !isPanning &&
+    !isPlaying &&
+    ["pencil", "eraser", "blur", "sharpen", "select_brush"].includes(
+      currentTool,
+    ) &&
+    hoverX >= 0 &&
+    hoverX < dimensions.width &&
+    hoverY >= 0 &&
+    hoverY < dimensions.height;
+  const brushOffset = -Math.floor((brushSize - 1) / 2);
+  const cursorLeft = canvasLeft + (hoverX + brushOffset) * zoom;
+  const cursorTop = canvasTop + (hoverY + brushOffset) * zoom;
+  const cursorSize = brushSize * zoom;
+  const cursorCenterX = canvasLeft + (hoverX + 0.5) * zoom;
+  const cursorCenterY = canvasTop + (hoverY + 0.5) * zoom;
+
   return (
     <div
       ref={containerRef}
       className="flex items-center justify-center w-full h-full bg-neutral-900 rounded-md overflow-hidden p-1 sm:p-4 relative select-none touch-none"
+      onPointerEnter={trackPointer}
+      onPointerLeave={() => setPointerPosition(null)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerCancel={(e) => {
+        setPointerPosition(null);
+        handlePointerUp(e);
+      }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
@@ -1997,6 +2045,35 @@ export const PixelCanvas: React.FC = () => {
           </Application>
         </div>
       </div>
+
+      {showBrushCursor && (
+        <svg
+          aria-hidden="true"
+          data-brush-cursor
+          className="absolute inset-0 w-full h-full pointer-events-none"
+        >
+          {["#000", "#fff"].map((stroke, index) => (
+            <g
+              key={stroke}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={index === 0 ? 3 : 1}
+            >
+              <rect
+                x={cursorLeft}
+                y={cursorTop}
+                width={cursorSize}
+                height={cursorSize}
+              />
+              {cursorSize >= 16 && (
+                <path
+                  d={`M ${cursorCenterX - 4} ${cursorCenterY} h 8 M ${cursorCenterX} ${cursorCenterY - 4} v 8`}
+                />
+              )}
+            </g>
+          ))}
+        </svg>
+      )}
 
       {isPlaying && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur pointer-events-none">
