@@ -52,6 +52,7 @@ export interface AnimationState {
   isPlaying: boolean;
   fps: number;
   isTimelineVisible: boolean;
+  isOnionSkin: boolean;
 }
 
 export interface EditorState {
@@ -61,6 +62,7 @@ export interface EditorState {
   brushSize: number;
   brushOpacity: number;
   pixelPerfect: boolean;
+  showGrid: boolean;
   zoom: number;
   pan: { x: number; y: number };
   selection: Uint8Array | null;

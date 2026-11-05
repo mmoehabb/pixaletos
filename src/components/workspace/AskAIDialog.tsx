@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useAppStore } from "../../store";
 import {
   getActiveProvider,
@@ -20,6 +20,26 @@ import type { Layer } from "../../types";
 export const AskAIDialog: React.FC = () => {
   const store = useAppStore();
   const [prompt, setPrompt] = useState("");
+  const [requestError, setRequestError] = useState("");
+  const [mode, setMode] = useState<"auto" | "generate" | "edit" | "analyze">(
+    "auto",
+  );
+  const source = useRef<{
+    createdAt: string;
+    updatedAt: string;
+    frameId: string | null;
+    layerId: string | null;
+  } | null>(null);
+  const sourceIsCurrent = () => {
+    const state = useAppStore.getState();
+    return (
+      !!source.current &&
+      source.current.createdAt === state.metadata.createdAt &&
+      source.current.updatedAt === state.metadata.updatedAt &&
+      source.current.frameId === state.activeKeyframeId &&
+      source.current.layerId === state.activeLayerId
+    );
+  };
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<"ask" | "history">("ask");
   const [previewResult, setPreviewResult] = useState<{
@@ -34,14 +54,26 @@ export const AskAIDialog: React.FC = () => {
     if (!prompt.trim()) return;
 
     setIsProcessing(true);
+    setRequestError("");
     setPreviewResult(null);
 
     // 1. Serialize editor context
     const currentState = useAppStore.getState();
     const context = serializeEditorContext(currentState);
+    source.current = {
+      createdAt: currentState.metadata.createdAt,
+      updatedAt: currentState.metadata.updatedAt,
+      frameId: currentState.activeKeyframeId,
+      layerId: currentState.activeLayerId,
+    };
 
     // 2. Resolve AI Operation type
-    const operation = resolveAIOperation(prompt, context);
+    const operation =
+      mode === "auto"
+        ? resolveAIOperation(prompt, context)
+        : mode === "generate"
+          ? { type: "generate" as const, prompt }
+          : { type: mode, instruction: prompt };
 
     const historyItem = {
       type: operation.type as "generate" | "edit" | "analyze",
@@ -79,6 +111,10 @@ export const AskAIDialog: React.FC = () => {
         throw new Error("Unsupported operation type");
       }
 
+      if (!sourceIsCurrent())
+        throw new Error(
+          "The document changed while the request was running. Please try again.",
+        );
       if (result.success && result.data) {
         // Find optimistic item by prompt to update it
         const recentItem = useAppStore
@@ -118,8 +154,10 @@ export const AskAIDialog: React.FC = () => {
             result: result.analysis,
           });
         }
+        setActiveTab("history");
         setPrompt("");
       } else if (!result.success) {
+        setRequestError(result.error || "Failed to process request");
         const recentItem = useAppStore
           .getState()
           .aiHistory.find((i) => i.prompt === prompt && i.status === "pending");
@@ -131,6 +169,7 @@ export const AskAIDialog: React.FC = () => {
         }
       }
     } catch (error: any) {
+      setRequestError(error.message || "Failed to process request");
       const recentItem = useAppStore
         .getState()
         .aiHistory.find((i) => i.prompt === prompt && i.status === "pending");
@@ -147,6 +186,13 @@ export const AskAIDialog: React.FC = () => {
 
   const acceptPreview = () => {
     if (!previewResult) return;
+    if (!sourceIsCurrent()) {
+      setRequestError(
+        "The document changed after this preview was generated. Please request a new preview.",
+      );
+      setPreviewResult(null);
+      return;
+    }
 
     const currentState = useAppStore.getState();
     let command;
@@ -159,7 +205,7 @@ export const AskAIDialog: React.FC = () => {
         opacity: 1,
         data: previewResult.data,
       };
-      const updatedLayers = [...currentState.layers, newLayer];
+      const updatedLayers = [newLayer, ...currentState.layers];
 
       command = {
         name: "AI Generation",
@@ -178,7 +224,7 @@ export const AskAIDialog: React.FC = () => {
         redo: () => {
           const prevState = useAppStore.getState();
           useAppStore.setState({
-            layers: [...prevState.layers, newLayer],
+            layers: [newLayer, ...prevState.layers],
             activeLayerId: newLayer.id,
           });
           useAppStore.getState().updateCurrentKeyframe();
@@ -348,6 +394,30 @@ export const AskAIDialog: React.FC = () => {
                 orchestrate edits to your current layers and canvas.
               </p>
 
+              <label className="text-sm text-gray-300">
+                Operation
+                <select
+                  value={mode}
+                  onChange={(event) =>
+                    setMode(event.target.value as typeof mode)
+                  }
+                  className="mt-1 w-full rounded border border-white/10 bg-[#1e1e1e] px-3 py-2 text-sm"
+                >
+                  <option value="auto">Automatic</option>
+                  <option value="generate">Generate</option>
+                  <option value="edit">Edit active layer</option>
+                  <option value="analyze">Analyze active layer</option>
+                </select>
+              </label>
+              <p className="text-xs text-gray-500">
+                Provider: {store.aiSettings.providerId} · Model:{" "}
+                {store.aiSettings.model}
+              </p>
+              {requestError && (
+                <p role="alert" className="text-sm text-red-300">
+                  {requestError}
+                </p>
+              )}
               <div className="flex-1">
                 <textarea
                   value={prompt}
@@ -405,7 +475,10 @@ export const AskAIDialog: React.FC = () => {
                   <p className="text-sm text-gray-200">{item.prompt}</p>
                   {item.status === "success" && (
                     <div className="flex items-center gap-1 text-xs text-gray-400">
-                      <ImageIcon size={12} /> Generated as new layer
+                      <ImageIcon size={12} />{" "}
+                      {item.type === "analyze"
+                        ? String(item.result || "Analysis complete")
+                        : "Result ready for review"}
                     </div>
                   )}
                   {item.error && (

@@ -1,3 +1,4 @@
+import { useAppStore } from "../../store";
 import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Upload,
@@ -129,6 +130,58 @@ export function SpritesheetDialog({ onClose }: SpritesheetDialogProps) {
     );
 
     setImages((prev) => [...prev, ...newImages]);
+  };
+
+  const addProjectFrames = async () => {
+    const state = useAppStore.getState();
+    const { width, height } = state.dimensions;
+    try {
+      const frames = await Promise.all(
+        state.keyframes.map(async (frame, index) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas unavailable");
+          const layers =
+            frame.id === state.activeKeyframeId ? state.layers : frame.layers;
+          for (const layer of [...layers].reverse()) {
+            if (!layer.visible || layer.opacity === 0) continue;
+            const temp = document.createElement("canvas");
+            temp.width = width;
+            temp.height = height;
+            const tempContext = temp.getContext("2d");
+            if (!tempContext) continue;
+            tempContext.putImageData(
+              new ImageData(new Uint8ClampedArray(layer.data), width, height),
+              0,
+              0,
+            );
+            ctx.globalAlpha = layer.opacity;
+            ctx.drawImage(temp, 0, 0);
+          }
+          const image = new Image();
+          const loaded = new Promise<void>((resolve, reject) => {
+            image.onload = () => resolve();
+            image.onerror = () => reject(new Error("Could not render frame"));
+          });
+          image.src = canvas.toDataURL("image/png");
+          await loaded;
+          const id = crypto.randomUUID();
+          return {
+            id,
+            name: `frame-${index + 1}-${id.slice(0, 6)}.png`,
+            image,
+            width,
+            height,
+          };
+        }),
+      );
+      setImages((previous) => [...previous, ...frames]);
+    } catch (error) {
+      console.error(error);
+      window.alert("Could not add animation frames.");
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -287,6 +340,13 @@ export function SpritesheetDialog({ onClose }: SpritesheetDialogProps) {
                 </button>
               </div>
 
+              <button
+                type="button"
+                onClick={addProjectFrames}
+                className="rounded border border-white/10 px-3 py-2 text-xs text-indigo-300 hover:bg-white/10"
+              >
+                Add Project Frames
+              </button>
               <div
                 className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors ${
                   isDragging

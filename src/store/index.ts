@@ -23,6 +23,7 @@ export interface AppState
   setBrushSize: (size: number) => void;
   setBrushOpacity: (opacity: number) => void;
   setPixelPerfect: (enabled: boolean) => void;
+  setShowGrid: (visible: boolean) => void;
   setZoom: (zoom: number) => void;
   setPan: (pan: { x: number; y: number }) => void;
   setSelection: (selection: Uint8Array | null) => void;
@@ -47,6 +48,7 @@ export interface AppState
     keyframes: Keyframe[],
     activeLayerId: string | null,
     fps: number,
+    activeKeyframeId?: string | null,
   ) => void;
   replaceCanvas: (
     dimensions: ProjectState["dimensions"],
@@ -65,7 +67,9 @@ export interface AppState
     result: { data: Uint8ClampedArray; type: string; prompt: string } | null,
   ) => void;
 
-  addKeyframe: () => void;
+  addKeyframe: (blank?: boolean) => void;
+  moveKeyframe: (id: string, targetIndex: number) => void;
+  setIsOnionSkin: (enabled: boolean) => void;
   duplicateKeyframe: (id: string) => void;
   deleteKeyframe: (id: string) => void;
   selectKeyframe: (id: string) => void;
@@ -78,7 +82,6 @@ export interface AppState
 const cloneLayers = (layers: Layer[]): Layer[] => {
   return layers.map((layer) => ({
     ...layer,
-    id: crypto.randomUUID(),
     data: new Uint8ClampedArray(layer.data),
   }));
 };
@@ -102,6 +105,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   brushSize: 1,
   brushOpacity: 100,
   pixelPerfect: false,
+  showGrid: false,
   zoom: 1,
   pan: { x: 0, y: 0 },
   selection: null,
@@ -114,6 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isPlaying: false,
   fps: 12,
   isTimelineVisible: false,
+  isOnionSkin: false,
 
   aiSettings: {
     providerId: "mock",
@@ -170,6 +175,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBrushSize: (size) => set({ brushSize: size }),
   setBrushOpacity: (opacity) => set({ brushOpacity: opacity }),
   setPixelPerfect: (enabled) => set({ pixelPerfect: enabled }),
+  setShowGrid: (showGrid) => set({ showGrid }),
   setZoom: (zoom) => set({ zoom }),
   setPan: (pan) => set({ pan }),
   setSelection: (selection) => set({ selection }),
@@ -341,6 +347,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
 
   executeCommand: (command) => {
+    const frameId = get().activeKeyframeId;
+    const original = command;
+    if (
+      frameId &&
+      (command.name.startsWith("Tool:") ||
+        command.name === "Erase Selection" ||
+        command.name === "Cut Selection")
+    ) {
+      command = {
+        ...original,
+        undo: () => {
+          get().selectKeyframe(frameId);
+          original.undo();
+        },
+        redo: () => {
+          get().selectKeyframe(frameId);
+          original.redo();
+        },
+      };
+    }
     command.redo();
     set((state) => ({
       past: [...state.past, command],
@@ -377,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     keyframes,
     activeLayerId,
     fps,
+    activeKeyframeId,
   ) =>
     set({
       metadata,
@@ -384,7 +411,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       layers,
       keyframes,
       activeLayerId,
-      activeKeyframeId: keyframes.length > 0 ? keyframes[0].id : null,
+      activeKeyframeId:
+        keyframes.find((frame) => frame.id === activeKeyframeId)?.id ??
+        keyframes[0]?.id ??
+        null,
       fps,
       selection: null,
       past: [], // Reset history on load
@@ -409,9 +439,30 @@ export const useAppStore = create<AppState>((set, get) => ({
       selection: null,
       metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
     })),
-  addKeyframe: () =>
+  setIsOnionSkin: (isOnionSkin) => set({ isOnionSkin }),
+  moveKeyframe: (id, targetIndex) =>
+    set((state) => {
+      const index = state.keyframes.findIndex((frame) => frame.id === id);
+      if (
+        index < 0 ||
+        targetIndex < 0 ||
+        targetIndex >= state.keyframes.length ||
+        index === targetIndex
+      )
+        return state;
+      const keyframes = state.keyframes.map((frame) =>
+        frame.id === state.activeKeyframeId
+          ? { ...frame, layers: cloneLayers(state.layers) }
+          : frame,
+      );
+      const [frame] = keyframes.splice(index, 1);
+      keyframes.splice(targetIndex, 0, frame);
+      return { keyframes };
+    }),
+  addKeyframe: (blank = false) =>
     set((state) => {
       const newLayers = cloneLayers(state.layers);
+      if (blank) for (const layer of newLayers) layer.data.fill(0);
       const newKeyframe: Keyframe = {
         id: crypto.randomUUID(),
         layers: newLayers,
@@ -430,7 +481,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           : loadedLayers[0]?.id || null;
 
       return {
-        keyframes: [...state.keyframes, newKeyframe],
+        keyframes: [
+          ...state.keyframes.map((k) =>
+            k.id === state.activeKeyframeId
+              ? { ...k, layers: cloneLayers(state.layers) }
+              : k,
+          ),
+          newKeyframe,
+        ],
         activeKeyframeId: newKeyframe.id,
         layers: loadedLayers,
         activeLayerId: nextActiveLayerId,
@@ -439,7 +497,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   duplicateKeyframe: (id) =>
     set((state) => {
-      const keyframeToDuplicate = state.keyframes.find((k) => k.id === id);
+      const keyframeToDuplicate =
+        id === state.activeKeyframeId
+          ? { id, layers: cloneLayers(state.layers) }
+          : state.keyframes.find((k) => k.id === id);
       if (!keyframeToDuplicate) return state;
 
       const newKeyframe: Keyframe = {
@@ -448,7 +509,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
 
       const index = state.keyframes.findIndex((k) => k.id === id);
-      const newKeyframes = [...state.keyframes];
+      const newKeyframes = state.keyframes.map((k) =>
+        k.id === state.activeKeyframeId
+          ? { ...k, layers: cloneLayers(state.layers) }
+          : k,
+      );
       newKeyframes.splice(index + 1, 0, newKeyframe);
 
       const loadedLayers = cloneLayers(newKeyframe.layers);
@@ -505,7 +570,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectKeyframe: (id) =>
     set((state) => {
       const keyframe = state.keyframes.find((k) => k.id === id);
-      if (!keyframe) return state;
+      if (!keyframe || id === state.activeKeyframeId) return state;
 
       // When selecting a new keyframe, we first need to save the current canvas state
       // to the previously active keyframe, then load the new one.
@@ -569,3 +634,68 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAISettingsDialogOpen: (isOpen) => set({ isAISettingsDialogOpen: isOpen }),
   setAIPreviewResult: (result) => set({ aiPreviewResult: result }),
 }));
+
+// Record structural changes as document snapshots so they participate in the
+// same history as pixel strokes. Selection and view state remain transient.
+const structuralActions = [
+  "addLayer",
+  "duplicateLayer",
+  "mergeDownLayer",
+  "removeLayer",
+  "updateLayer",
+  "reorderLayers",
+  "addKeyframe",
+  "duplicateKeyframe",
+  "deleteKeyframe",
+  "moveKeyframe",
+] as const;
+
+type DocumentSnapshot = Pick<
+  AppState,
+  "layers" | "keyframes" | "activeLayerId" | "activeKeyframeId" | "metadata"
+>;
+function documentSnapshot(state: AppState): DocumentSnapshot {
+  return {
+    layers: cloneLayers(state.layers),
+    keyframes: state.keyframes.map((frame) => ({
+      ...frame,
+      layers: cloneLayers(
+        frame.id === state.activeKeyframeId ? state.layers : frame.layers,
+      ),
+    })),
+    activeLayerId: state.activeLayerId,
+    activeKeyframeId: state.activeKeyframeId,
+    metadata: { ...state.metadata },
+  };
+}
+for (const name of structuralActions) {
+  const original = useAppStore.getState()[name] as (...args: any[]) => void;
+  useAppStore.setState({
+    [name]: (...args: any[]) => {
+      const beforeState = useAppStore.getState();
+      const before = documentSnapshot(beforeState);
+      original(...args);
+      const afterState = useAppStore.getState();
+      if (afterState === beforeState) return;
+      const after = documentSnapshot(afterState);
+      const restore = (snapshot: DocumentSnapshot) =>
+        useAppStore.setState({
+          ...snapshot,
+          layers: cloneLayers(snapshot.layers),
+          keyframes: snapshot.keyframes.map((frame) => ({
+            ...frame,
+            layers: cloneLayers(frame.layers),
+          })),
+        });
+      const command: Command = {
+        name,
+        undo: () => restore(before),
+        redo: () => restore(after),
+      };
+      useAppStore.setState((state) => ({
+        past: [...state.past, command],
+        future: [],
+      }));
+    },
+  });
+}
