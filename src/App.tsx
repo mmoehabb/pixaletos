@@ -6,6 +6,8 @@ import { RightPanel } from "./components/workspace/RightPanel";
 import { KeyboardShortcuts } from "./components/workspace/KeyboardShortcuts";
 import { MenuBar } from "./components/workspace/MenuBar";
 import { TimelineDock } from "./components/workspace/TimelineDock";
+import { hasUnsavedChanges, markProjectSaved } from "./utils/project";
+import { Recovery } from "./components/workspace/Recovery";
 import { AskAIDialog } from "./components/workspace/AskAIDialog";
 import { useAppStore } from "./store";
 import packageJson from "../package.json";
@@ -13,9 +15,10 @@ import packageJson from "../package.json";
 function App() {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const {
-    addLayer,
+    createNewProject,
     layers,
     dimensions,
+    metadata,
     zoom,
     currentTool,
     setZoom,
@@ -25,9 +28,21 @@ function App() {
 
   useEffect(() => {
     if (layers.length === 0) {
-      addLayer();
+      createNewProject();
+      markProjectSaved();
     }
-  }, [layers, addLayer]);
+  }, [layers, createNewProject]);
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#111318] font-sans text-neutral-200">
@@ -76,7 +91,7 @@ function App() {
         <Toolbar />
 
         <div className="flex-1 flex flex-col relative overflow-hidden bg-neutral-950">
-          <PixelCanvas />
+          {layers.length > 0 && <PixelCanvas />}
           {isTimelineVisible && <TimelineDock />}
         </div>
 
@@ -104,6 +119,22 @@ function App() {
       {/* Status Bar */}
       <div className="z-20 flex h-7 flex-shrink-0 items-center justify-between border-t border-white/8 bg-[#191c23] px-3 text-xs text-neutral-400">
         <div className="flex gap-4 items-center">
+          <Recovery />
+          <input
+            aria-label="Project name"
+            title="Project name"
+            value={metadata.name}
+            onChange={(event) =>
+              useAppStore.setState((state) => ({
+                metadata: {
+                  ...state.metadata,
+                  name: event.target.value,
+                  updatedAt: new Date().toISOString(),
+                },
+              }))
+            }
+            className="hidden lg:block w-32 rounded bg-transparent px-1 text-neutral-300 hover:bg-white/10 focus:bg-neutral-800"
+          />
           <button
             onClick={() => setIsTimelineVisible(!isTimelineVisible)}
             className={`px-2 py-0.5 rounded transition-colors ${

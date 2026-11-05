@@ -1,12 +1,8 @@
+import { copySelection, pasteSelection } from "../../utils/clipboard";
 import React, { useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
 import type { Tool, Command } from "../../types";
-import {
-  exportToPNG,
-  importPNG,
-  loadProject,
-  saveProject,
-} from "../../utils/project";
+import { importPNG, loadProject, saveProject } from "../../utils/project";
 
 export const KeyboardShortcuts: React.FC = () => {
   const { setTool, undo, redo, setZoom, zoom, setSelection } = useAppStore();
@@ -55,7 +51,7 @@ export const KeyboardShortcuts: React.FC = () => {
         }
 
         if (e.key.toLowerCase() === "e") {
-          exportToPNG(useAppStore.getState());
+          window.dispatchEvent(new Event("pixaletos-export"));
           e.preventDefault();
           return;
         }
@@ -89,17 +85,17 @@ export const KeyboardShortcuts: React.FC = () => {
           return;
         }
 
-        // Basic copy/paste placeholders (full clipboard integration requires more work)
-        if (
-          e.key.toLowerCase() === "c" ||
-          e.key.toLowerCase() === "x" ||
-          e.key.toLowerCase() === "v"
-        ) {
-          // e.preventDefault();
-          // To be implemented in a future iteration
+        if (["c", "x", "v"].includes(e.key.toLowerCase())) {
+          if (e.key.toLowerCase() === "v") pasteSelection();
+          else copySelection(e.key.toLowerCase() === "x");
+          e.preventDefault();
           return;
         }
       } else {
+        if (e.key === "Escape") {
+          setSelection(null);
+          return;
+        }
         // Tool shortcuts
         const toolMap: Record<string, Tool> = {
           p: "pencil",

@@ -1,3 +1,4 @@
+import { copySelection, pasteSelection } from "../../utils/clipboard";
 import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "../../store";
 import {
@@ -6,7 +7,7 @@ import {
   loadProject,
   saveProject,
 } from "../../utils/project";
-import { flipImage, rotateImage } from "../../utils/transforms";
+import { flipImage, rotateImage, resizeCanvas } from "../../utils/transforms";
 import { TransformDialog, type TransformMode } from "./TransformDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SpritesheetDialog } from "./SpritesheetDialog";
@@ -39,6 +40,9 @@ function MenuDropdown({
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
@@ -47,15 +51,19 @@ function MenuDropdown({
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen, onClose]);
 
   return (
     <div className="relative" ref={menuRef}>
       <button
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
         onClick={onToggle}
         className={`rounded px-2.5 py-1 transition-colors hover:bg-white/6 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
           isOpen ? "bg-white/6 text-white" : "text-neutral-400"
@@ -65,7 +73,9 @@ function MenuDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-48 rounded-md border border-white/10 bg-[#191c23] py-1 shadow-lg z-50">
+        <div
+          className={`absolute top-full mt-1 w-48 rounded-md border border-white/10 bg-[#191c23] py-1 shadow-lg z-50 ${label === "AI" || label === "View" || label === "Help" ? "right-0 sm:left-0 sm:right-auto" : "left-0"}`}
+        >
           {items.map((item, index) => {
             if (item.divider) {
               return (
@@ -104,7 +114,17 @@ export function MenuBar() {
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isSpritesheetDialogOpen, setIsSpritesheetDialogOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [exportScale, setExportScale] = useState(1);
+  const [exportError, setExportError] = useState("");
   const store = useAppStore();
+
+  useEffect(() => {
+    const openExport = () => setExportOpen(true);
+    window.addEventListener("pixaletos-export", openExport);
+    return () => window.removeEventListener("pixaletos-export", openExport);
+  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -229,7 +249,7 @@ export function MenuBar() {
     {
       label: "Export as PNG",
       shortcut: "Ctrl+E",
-      onClick: () => exportToPNG(store),
+      onClick: () => setExportOpen(true),
     },
     {
       label: "Export Spritesheet...",
@@ -241,9 +261,9 @@ export function MenuBar() {
     { label: "Undo", shortcut: "Ctrl+Z", onClick: store.undo },
     { label: "Redo", shortcut: "Ctrl+Shift+Z", onClick: store.redo },
     { divider: true },
-    { label: "Cut", shortcut: "Ctrl+X", disabled: true },
-    { label: "Copy", shortcut: "Ctrl+C", disabled: true },
-    { label: "Paste", shortcut: "Ctrl+V", disabled: true },
+    { label: "Cut", shortcut: "Ctrl+X", onClick: () => copySelection(true) },
+    { label: "Copy", shortcut: "Ctrl+C", onClick: () => copySelection() },
+    { label: "Paste", shortcut: "Ctrl+V", onClick: pasteSelection },
   ];
 
   const imageItems: MenuItem[] = [
@@ -254,6 +274,33 @@ export function MenuBar() {
     { label: "Resize...", onClick: () => setTransformMode("scale") },
     { divider: true },
     { label: "Crop...", onClick: () => setTransformMode("crop") },
+    {
+      label: "Crop to Selection",
+      disabled: !store.selection?.some(Boolean),
+      onClick: () => {
+        const { selection, dimensions } = useAppStore.getState();
+        if (!selection) return;
+        let left = dimensions.width,
+          top = dimensions.height,
+          right = -1,
+          bottom = -1;
+        for (let y = 0; y < dimensions.height; y++)
+          for (let x = 0; x < dimensions.width; x++)
+            if (selection[y * dimensions.width + x]) {
+              left = Math.min(left, x);
+              right = Math.max(right, x);
+              top = Math.min(top, y);
+              bottom = Math.max(bottom, y);
+            }
+        if (right < left || bottom < top) return;
+        const width = right - left + 1,
+          height = bottom - top + 1;
+        applyTransform("Crop to selection", (layers, dims) => ({
+          layers: resizeCanvas(layers, dims, width, height, -left, -top),
+          dimensions: { width, height },
+        }));
+      },
+    },
     {
       label: "Rotate 90° Clockwise",
       onClick: () => {
@@ -334,12 +381,20 @@ export function MenuBar() {
     },
     { label: "Reset Zoom", onClick: () => store.setZoom(1) },
     { divider: true },
-    { label: "Toggle Grid", disabled: true },
+    {
+      label: store.showGrid ? "Hide Grid" : "Show Grid",
+      onClick: () => store.setShowGrid(!store.showGrid),
+    },
     {
       label: isFullscreen ? "Exit Full Screen" : "Full Screen",
       onClick: toggleFullscreen,
     },
   ];
+
+  viewItems.push(
+    { divider: true },
+    { label: "Keyboard Shortcuts...", onClick: () => setHelpOpen(true) },
+  );
 
   const aiItems: MenuItem[] = [
     { label: "Ask AI...", onClick: () => store.setAskAIDialogOpen(true) },
@@ -373,6 +428,112 @@ export function MenuBar() {
           />
         ))}
       </nav>
+      {helpOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="help-title"
+          className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-4"
+        >
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#191c23] p-5 shadow-xl">
+            <h2 id="help-title" className="text-lg font-semibold text-white">
+              Keyboard shortcuts
+            </h2>
+            <dl className="mt-4 grid grid-cols-2 gap-2 text-sm text-neutral-300">
+              <dt>Undo / Redo</dt>
+              <dd>Ctrl/⌘ Z / Shift Z</dd>
+              <dt>Save / Open</dt>
+              <dd>Ctrl/⌘ S / O</dd>
+              <dt>Export / Import PNG</dt>
+              <dd>Ctrl/⌘ E / I</dd>
+              <dt>Copy / Cut / Paste</dt>
+              <dd>Ctrl/⌘ C / X / V</dd>
+              <dt>Select all / Deselect</dt>
+              <dd>Ctrl/⌘ A / Escape</dd>
+              <dt>Pencil / Eraser / Fill</dt>
+              <dd>P / E / F</dd>
+              <dt>Move / Select / Pan</dt>
+              <dd>V / M / H or Space</dd>
+              <dt>Line / Rectangle / Ellipse</dt>
+              <dd>L / U / O</dd>
+              <dt>Eyedropper / Zoom</dt>
+              <dd>I / Z</dd>
+            </dl>
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => setHelpOpen(false)}
+                className="rounded bg-indigo-600 px-3 py-2 text-sm text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {exportOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-title"
+          className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-4"
+        >
+          <form
+            className="w-full max-w-sm rounded-lg border border-white/10 bg-[#191c23] p-5 shadow-xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              try {
+                exportToPNG(useAppStore.getState(), exportScale);
+                setExportOpen(false);
+                setExportError("");
+              } catch (error) {
+                setExportError(
+                  error instanceof Error ? error.message : "Export failed",
+                );
+              }
+            }}
+          >
+            <h2 id="export-title" className="text-lg font-semibold text-white">
+              Export PNG
+            </h2>
+            <p className="mt-1 text-sm text-neutral-400">
+              Transparent background, with crisp nearest-neighbor scaling.
+            </p>
+            <label className="mt-4 block text-sm">
+              Scale{" "}
+              <input
+                type="number"
+                min="1"
+                max="64"
+                step="1"
+                value={exportScale}
+                onChange={(e) => setExportScale(Number(e.target.value))}
+                className="ml-3 w-20 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
+              />
+            </label>
+            <p className="mt-2 text-sm text-neutral-400">
+              Output: {store.dimensions.width * exportScale} ×{" "}
+              {store.dimensions.height * exportScale} pixels
+            </p>
+            {exportError && (
+              <p role="alert" className="mt-2 text-sm text-red-300">
+                {exportError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded px-3 py-2 hover:bg-white/10"
+                onClick={() => setExportOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="rounded bg-indigo-600 px-3 py-2 text-white">
+                Export
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       {transformMode && (
         <TransformDialog
           mode={transformMode}

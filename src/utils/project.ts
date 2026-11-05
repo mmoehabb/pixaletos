@@ -2,6 +2,40 @@ import { useAppStore } from "../store";
 import type { AppState } from "../store";
 import { saveAs } from "file-saver";
 
+let savedState: {
+  updatedAt: string;
+  name: string;
+  fps: number;
+  past: AppState["past"];
+} | null = null;
+export function markProjectSaved() {
+  const state = useAppStore.getState();
+  savedState = {
+    updatedAt: state.metadata.updatedAt,
+    name: state.metadata.name,
+    fps: state.fps,
+    past: state.past,
+  };
+}
+export function hasUnsavedChanges() {
+  if (!savedState) return false;
+  const state = useAppStore.getState();
+  return (
+    savedState.updatedAt !== state.metadata.updatedAt ||
+    savedState.name !== state.metadata.name ||
+    savedState.fps !== state.fps ||
+    savedState.past !== state.past
+  );
+}
+function mayReplaceProject() {
+  return (
+    !hasUnsavedChanges() ||
+    window.confirm(
+      "You have unsaved changes. Open another project and discard them? A local recovery copy may be available.",
+    )
+  );
+}
+
 const MAX_CANVAS_DIMENSION = 4096;
 const MAX_CANVAS_PIXELS = MAX_CANVAS_DIMENSION * MAX_CANVAS_DIMENSION;
 const MAX_EXPORT_DIMENSION = 16384;
@@ -67,6 +101,7 @@ export function saveProject(store: AppState) {
     dimensions: freshStore.dimensions,
     keyframes: serializedKeyframes,
     activeLayerId: freshStore.activeLayerId,
+    activeKeyframeId: freshStore.activeKeyframeId,
     fps: freshStore.fps,
   };
 
@@ -76,9 +111,11 @@ export function saveProject(store: AppState) {
 
   const filename = `${store.metadata.name.replace(/[^a-z0-9]/gi, "_").toLowerCase() || "project"}.json`;
   saveAs(blob, filename);
+  markProjectSaved();
 }
 
 export function loadProject(store: AppState) {
+  if (!mayReplaceProject()) return;
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".json,application/json";
@@ -168,13 +205,17 @@ export function loadProject(store: AppState) {
             },
           ];
         } else if (finalKeyframes.length > 0 && finalLayers.length === 0) {
-          finalLayers = finalKeyframes[0].layers.map(
+          const activeFrame =
+            finalKeyframes.find(
+              (frame) => frame.id === projectData.activeKeyframeId,
+            ) || finalKeyframes[0];
+          finalLayers = activeFrame.layers.map(
             (l: Record<string, unknown>) => ({
               ...l,
               data: new Uint8ClampedArray(l.data as Uint8ClampedArray),
             }),
           );
-          finalKeyframes[0].layers.forEach((l: Record<string, unknown>) =>
+          activeFrame.layers.forEach((l: Record<string, unknown>) =>
             layerIds.add(String(l.id)),
           );
         }
@@ -197,7 +238,9 @@ export function loadProject(store: AppState) {
             ? projectData.activeLayerId
             : (finalLayers[0]?.id ?? null),
           projectData.fps || 12,
+          projectData.activeKeyframeId,
         );
+        markProjectSaved();
       } catch (error) {
         console.error("Failed to load project:", error);
         alert("Failed to load project file.");
@@ -213,6 +256,7 @@ export function loadProject(store: AppState) {
 
 /** Decode a PNG into editor-native RGBA pixels and make it the current project. */
 export function importPNG(store: AppState) {
+  if (!mayReplaceProject()) return;
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/png";
@@ -267,6 +311,7 @@ export function importPNG(store: AppState) {
           layerId,
           12,
         );
+        markProjectSaved();
       } catch (error) {
         console.error("Failed to import PNG:", error);
         alert("Could not import this PNG file.");

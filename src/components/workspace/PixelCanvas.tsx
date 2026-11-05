@@ -229,6 +229,7 @@ export const PixelCanvas: React.FC = () => {
     brushSize,
     brushOpacity,
     pixelPerfect,
+    showGrid,
     executeCommand,
     updateLayerData,
     selection,
@@ -236,6 +237,9 @@ export const PixelCanvas: React.FC = () => {
     setForegroundColor,
     setZoom,
     isPlaying,
+    isOnionSkin,
+    keyframes,
+    activeKeyframeId,
   } = useAppStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -297,8 +301,10 @@ export const PixelCanvas: React.FC = () => {
   // Keep a resized, rotated, or imported canvas visible and centred. The
   // previous one-time fit left an altered canvas using stale viewport offsets.
   useEffect(() => {
-    if (containerRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
+    const container = containerRef.current;
+    if (!container) return;
+    const fit = () => {
+      const containerRect = container.getBoundingClientRect();
       const padding = 60; // Leave some space around the canvas
       const availableWidth = containerRect.width - padding;
       const availableHeight = containerRect.height - padding;
@@ -315,7 +321,11 @@ export const PixelCanvas: React.FC = () => {
       const panX = (containerRect.width - dimensions.width) / 2;
       const panY = (containerRect.height - dimensions.height) / 2;
       setPan({ x: panX, y: panY });
-    }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [dimensions.width, dimensions.height, setZoom, setPan]);
 
   const hexToRgb = (hex: string) => {
@@ -2020,6 +2030,37 @@ export const PixelCanvas: React.FC = () => {
             resolution={1}
           >
             <pixiContainer>
+              {isOnionSkin &&
+                !isPlaying &&
+                keyframes[
+                  Math.max(
+                    0,
+                    keyframes.findIndex(
+                      (frame) => frame.id === activeKeyframeId,
+                    ) - 1,
+                  )
+                ]?.id !== activeKeyframeId &&
+                [
+                  ...(keyframes[
+                    Math.max(
+                      0,
+                      keyframes.findIndex(
+                        (frame) => frame.id === activeKeyframeId,
+                      ) - 1,
+                    )
+                  ]?.layers || []),
+                ]
+                  .reverse()
+                  .map((layer, index) => (
+                    <CanvasLayer
+                      key={`onion-${layer.id}`}
+                      data={layer.data}
+                      opacity={layer.opacity * 0.3}
+                      visible={layer.visible}
+                      dimensions={dimensions}
+                      zIndex={index - 1000}
+                    />
+                  ))}
               {[...layers].reverse().map((layer, index) => (
                 <CanvasLayer
                   key={layer.id}
@@ -2044,6 +2085,16 @@ export const PixelCanvas: React.FC = () => {
             </pixiContainer>
           </Application>
         </div>
+        {showGrid && zoom >= 4 && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundSize: "1px 1px",
+              backgroundImage: `linear-gradient(to right, rgba(0,0,0,.35) ${1 / zoom}px, transparent ${1 / zoom}px), linear-gradient(to bottom, rgba(0,0,0,.35) ${1 / zoom}px, transparent ${1 / zoom}px)`,
+            }}
+          />
+        )}
       </div>
 
       {showBrushCursor && (

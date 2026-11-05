@@ -43,6 +43,8 @@ const ToolButton: React.FC<
   return (
     <button
       onClick={onClick}
+      aria-label={label}
+      aria-pressed={isActive}
       onContextMenu={onContextMenu}
       className={`p-2 rounded-md mb-1 transition-colors relative ${
         isActive
@@ -173,8 +175,17 @@ export const Toolbar: React.FC = () => {
             setSelectMenuOpen(!selectMenuOpen);
           }}
         />
+        <button
+          type="button"
+          aria-label="Selection tools"
+          aria-expanded={selectMenuOpen}
+          onClick={() => setSelectMenuOpen(!selectMenuOpen)}
+          className="absolute bottom-0 right-0 z-10 rounded bg-neutral-700 px-1 text-[10px] text-white"
+        >
+          ▾
+        </button>
         {selectMenuOpen && (
-          <div className="absolute left-full top-0 ml-2 bg-neutral-800 border border-neutral-700 rounded-md shadow-lg py-1 w-48 z-50">
+          <div className="fixed left-2 bottom-24 md:left-16 md:top-16 md:bottom-auto bg-neutral-800 border border-neutral-700 rounded-md shadow-lg py-1 w-48 z-[80]">
             <button
               className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-700 ${lastSelectTool === "select" ? "text-indigo-400" : "text-neutral-200"}`}
               onClick={() => {
@@ -222,7 +233,7 @@ export const Toolbar: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex-row overflow-x-auto border-t md:w-16 bg-neutral-900 md:border-r md:border-t-0 border-neutral-800 flex md:flex-col items-center md:py-4 px-2 md:px-0 py-2 flex-shrink-0 z-50 md:overflow-y-visible no-scrollbar md:overflow-x-visible">
+    <div className="w-full flex-row overflow-x-auto border-t md:w-16 bg-neutral-900 md:border-r md:border-t-0 border-neutral-800 flex md:flex-col items-center md:py-4 px-2 md:px-0 py-2 flex-shrink-0 z-50 md:overflow-y-auto no-scrollbar md:overflow-x-visible">
       <div className="flex md:flex-col items-center md:items-stretch gap-1 md:gap-0 md:mb-4 w-auto md:w-full md:px-2 flex-shrink-0">
         {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}

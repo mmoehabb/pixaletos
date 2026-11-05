@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useAppStore } from "../../store";
-import { saveProject } from "../../utils/project";
+import { markProjectSaved, saveProject } from "../../utils/project";
 
 interface NewProjectDialogProps {
   onClose: () => void;
@@ -22,6 +22,7 @@ export function NewProjectDialog({ onClose }: NewProjectDialogProps) {
     if (!isValidSize) return;
     if (shouldSave) saveProject(store);
     store.createNewProject(width, height);
+    markProjectSaved();
     onClose();
   };
 

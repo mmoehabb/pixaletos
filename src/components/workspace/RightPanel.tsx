@@ -33,11 +33,28 @@ export const RightPanel: React.FC = () => {
     if (!prompt.trim()) return;
     setIsProcessing(true);
 
-    const context = serializeEditorContext(useAppStore.getState());
+    const initial = useAppStore.getState();
+    const context = serializeEditorContext(initial);
 
     try {
       const result = await getActiveProvider().generate(prompt, context);
 
+      const latest = useAppStore.getState();
+      if (
+        latest.metadata.createdAt !== initial.metadata.createdAt ||
+        latest.metadata.updatedAt !== initial.metadata.updatedAt ||
+        latest.activeKeyframeId !== initial.activeKeyframeId ||
+        latest.activeLayerId !== initial.activeLayerId
+      ) {
+        store.addAIHistoryItem({
+          type: "generate",
+          prompt,
+          status: "error",
+          error:
+            "The document changed while the request was running. Please try again.",
+        });
+        return;
+      }
       if (result.success && result.data) {
         // Quick normalize for the quick panel generate
         const normalizedData = normalizePixelArt(
@@ -57,7 +74,7 @@ export const RightPanel: React.FC = () => {
         };
 
         const currentState = useAppStore.getState();
-        const updatedLayers = [...currentState.layers, newLayer];
+        const updatedLayers = [newLayer, ...currentState.layers];
 
         const command = {
           name: "AI Quick Generate",
@@ -76,7 +93,7 @@ export const RightPanel: React.FC = () => {
           redo: () => {
             const prevState = useAppStore.getState();
             useAppStore.setState({
-              layers: [...prevState.layers, newLayer],
+              layers: [newLayer, ...prevState.layers],
               activeLayerId: newLayer.id,
             });
             useAppStore.getState().updateCurrentKeyframe();
