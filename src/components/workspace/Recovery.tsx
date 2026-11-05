@@ -54,7 +54,7 @@ export function Recovery() {
 
   useEffect(() => {
     if (!ready) return;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let previous = useAppStore.getState();
     const unsubscribe = useAppStore.subscribe((state) => {
       if (
@@ -68,8 +68,9 @@ export function Recovery() {
         return;
       }
       previous = state;
-      clearTimeout(timer);
+      if (timer) return;
       timer = setTimeout(() => {
+        timer = undefined;
         const current = useAppStore.getState();
         if (!current.layers.length || !current.keyframes.length) return;
         const snapshot: RecoveryData = {

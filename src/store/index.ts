@@ -353,7 +353,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       frameId &&
       (command.name.startsWith("Tool:") ||
         command.name === "Erase Selection" ||
-        command.name === "Cut Selection")
+        command.name === "Cut Selection" ||
+        command.name === "AI Edit" ||
+        command.name === "AI Generation" ||
+        command.name === "AI Quick Generate")
     ) {
       command = {
         ...original,
@@ -642,7 +645,6 @@ const structuralActions = [
   "duplicateLayer",
   "mergeDownLayer",
   "removeLayer",
-  "updateLayer",
   "reorderLayers",
   "addKeyframe",
   "duplicateKeyframe",
@@ -696,6 +698,31 @@ for (const name of structuralActions) {
         past: [...state.past, command],
         future: [],
       }));
+    },
+  });
+}
+
+// Property edits retain only the changed properties, not every frame's pixels.
+{
+  const original = useAppStore.getState().updateLayer;
+  useAppStore.setState({
+    updateLayer: (id, updates) => {
+      const state = useAppStore.getState();
+      const layer = state.layers.find((item) => item.id === id);
+      if (!layer) return;
+      const before: Partial<Layer> = {};
+      for (const key of Object.keys(updates) as (keyof Layer)[])
+        Object.assign(before, { [key]: layer[key] });
+      const frameId = state.activeKeyframeId;
+      const apply = (values: Partial<Layer>) => {
+        if (frameId) useAppStore.getState().selectKeyframe(frameId);
+        original(id, values);
+      };
+      state.executeCommand({
+        name: "Layer properties",
+        undo: () => apply(before),
+        redo: () => apply(updates),
+      });
     },
   });
 }

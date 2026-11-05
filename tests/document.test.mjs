@@ -98,3 +98,50 @@ test("pixel history targets the frame where the edit was made", () => {
   useAppStore.getState().selectKeyframe(first);
   assert.equal(useAppStore.getState().layers[0].data[3], 0);
 });
+
+test("paste redo restores the original pixels after a subsequent stroke", async () => {
+  const { copySelection, pasteSelection } = await vite.ssrLoadModule(
+    "/src/utils/clipboard.ts",
+  );
+  useAppStore.getState().createNewProject(2, 2);
+  copySelection();
+  pasteSelection();
+  const id = useAppStore.getState().activeLayerId;
+  useAppStore.getState().layers[0].data[7] = 255;
+  useAppStore.getState().executeCommand({
+    name: "Tool: pencil",
+    undo: () => {
+      const data = new Uint8ClampedArray(useAppStore.getState().layers[0].data);
+      data[7] = 0;
+      useAppStore.getState().updateLayerData(id, data);
+    },
+    redo: () => {},
+  });
+  useAppStore.getState().undo();
+  useAppStore.getState().undo();
+  useAppStore.getState().redo();
+  assert.equal(useAppStore.getState().layers[0].data[7], 0);
+});
+
+test("AI edit undo selects its originating frame", () => {
+  useAppStore.getState().createNewProject(2, 2);
+  const first = useAppStore.getState().activeKeyframeId;
+  useAppStore.getState().addKeyframe(true);
+  const second = useAppStore.getState().activeKeyframeId;
+  const id = useAppStore.getState().activeLayerId;
+  const data = new Uint8ClampedArray(16);
+  data[3] = 255;
+  useAppStore.getState().updateLayerData(id, data);
+  useAppStore.getState().selectKeyframe(first);
+  useAppStore.getState().executeCommand({
+    name: "AI Edit",
+    undo: () =>
+      useAppStore.getState().updateLayerData(id, new Uint8ClampedArray(16)),
+    redo: () => {},
+  });
+  useAppStore.getState().selectKeyframe(second);
+  useAppStore.getState().undo();
+  assert.equal(useAppStore.getState().activeKeyframeId, first);
+  useAppStore.getState().selectKeyframe(second);
+  assert.equal(useAppStore.getState().layers[0].data[3], 255);
+});

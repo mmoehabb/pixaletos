@@ -62,6 +62,7 @@ export function pasteSelection() {
     opacity: 1,
     data,
   };
+  const originalData = new Uint8ClampedArray(data);
   const priorActive = state.activeLayerId;
   const selectFrame = () => {
     if (frameId) useAppStore.getState().selectKeyframe(frameId);
@@ -79,7 +80,7 @@ export function pasteSelection() {
       selectFrame();
       useAppStore.setState((current) => ({
         layers: [
-          layer,
+          { ...layer, data: new Uint8ClampedArray(originalData) },
           ...current.layers.filter((item) => item.id !== layer.id),
         ],
         activeLayerId: layer.id,
