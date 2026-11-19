@@ -31,6 +31,12 @@ import {
   type ScaleHandle,
   type SelectionBounds,
 } from "../../utils/transforms";
+import {
+  pickLockedDirection,
+  projectOntoLockedDirection,
+  type LockedDirection,
+  type Point,
+} from "../../utils/brushLock";
 
 extend({ Container, Sprite, Graphics: PixiGraphics });
 
@@ -352,6 +358,9 @@ export const PixelCanvas: React.FC = () => {
   const startDrawPos = useRef<{ x: number; y: number } | null>(null);
   const lastDrawPos = useRef<{ x: number; y: number } | null>(null);
   const pixelPerfectPoints = useRef<{ x: number; y: number }[]>([]);
+  const brushLockAnchor = useRef<Point | null>(null);
+  const brushLockScreenAnchor = useRef<Point | null>(null);
+  const brushLockedDir = useRef<LockedDirection | null>(null);
 
   const previewDataRef = useRef<Uint8ClampedArray>(
     new Uint8ClampedArray(dimensions.width * dimensions.height * 4),
@@ -1438,6 +1447,13 @@ export const PixelCanvas: React.FC = () => {
     startDrawPos.current = { x, y };
     lastDrawPos.current = { x, y };
     pixelPerfectPoints.current = [];
+    const isBrush = ["pencil", "eraser", "blur", "sharpen"].includes(
+      currentTool,
+    );
+    brushLockAnchor.current = isBrush && e.shiftKey ? { x, y } : null;
+    brushLockScreenAnchor.current =
+      isBrush && e.shiftKey ? { x: e.clientX, y: e.clientY } : null;
+    brushLockedDir.current = null;
 
     const color =
       currentTool === "eraser"
@@ -1494,8 +1510,39 @@ export const PixelCanvas: React.FC = () => {
     }
 
     if (!isDrawing || !lastDrawPos.current) return;
-    const { x, y } = getCanvasCoords(e);
+    let { x, y } = getCanvasCoords(e);
     const prev = lastDrawPos.current;
+
+    if (["pencil", "eraser", "blur", "sharpen"].includes(currentTool)) {
+      if (e.shiftKey) {
+        if (!brushLockAnchor.current) {
+          brushLockAnchor.current = { x: prev.x, y: prev.y };
+          brushLockScreenAnchor.current = { x: e.clientX, y: e.clientY };
+        }
+        if (!brushLockedDir.current && brushLockScreenAnchor.current) {
+          brushLockedDir.current = pickLockedDirection(
+            brushLockScreenAnchor.current,
+            { x: e.clientX, y: e.clientY },
+            6,
+          );
+        }
+        if (brushLockedDir.current) {
+          const projected = projectOntoLockedDirection(
+            brushLockAnchor.current,
+            brushLockedDir.current,
+            { x, y },
+          );
+          x = projected.x;
+          y = projected.y;
+        } else {
+          return;
+        }
+      } else {
+        brushLockAnchor.current = null;
+        brushLockScreenAnchor.current = null;
+        brushLockedDir.current = null;
+      }
+    }
 
     if (x === prev.x && y === prev.y) return;
 
@@ -1814,6 +1861,9 @@ export const PixelCanvas: React.FC = () => {
 
     if (isDrawing) {
       setIsDrawing(false);
+      brushLockAnchor.current = null;
+      brushLockScreenAnchor.current = null;
+      brushLockedDir.current = null;
       if (
         !transitioning.current &&
         e.currentTarget.hasPointerCapture(e.pointerId)
@@ -2286,12 +2336,18 @@ export const PixelCanvas: React.FC = () => {
   // overlay in screen space so its two-tone outline stays visible at any zoom.
   const canvasLeft = pan.x + (dimensions.width * (1 - zoom)) / 2;
   const canvasTop = pan.y + (dimensions.height * (1 - zoom)) / 2;
-  const hoverX = pointerPosition
+  const rawHoverX = pointerPosition
     ? Math.floor((pointerPosition.x - canvasLeft) / zoom)
     : -1;
-  const hoverY = pointerPosition
+  const rawHoverY = pointerPosition
     ? Math.floor((pointerPosition.y - canvasTop) / zoom)
     : -1;
+  const isBrushLocked =
+    isDrawing &&
+    brushLockedDir.current !== null &&
+    lastDrawPos.current !== null;
+  const hoverX = isBrushLocked ? lastDrawPos.current!.x : rawHoverX;
+  const hoverY = isBrushLocked ? lastDrawPos.current!.y : rawHoverY;
   const showBrushCursor =
     pointerPosition !== null &&
     !isPanning &&
@@ -2312,6 +2368,9 @@ export const PixelCanvas: React.FC = () => {
       } as React.PointerEvent<HTMLDivElement>);
     }
     penTool.current = null;
+    brushLockAnchor.current = null;
+    brushLockScreenAnchor.current = null;
+    brushLockedDir.current = null;
     setIsDrawing(false);
     setIsPanning(false);
   };
