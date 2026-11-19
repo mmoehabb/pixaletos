@@ -200,6 +200,7 @@ export const KeyboardShortcuts: React.FC = () => {
       }
     };
     const handleWheel = (e: WheelEvent) => {
+      if ((e.target as HTMLElement)?.closest("[data-reference-view]")) return;
       if (
         useInputSettings.getState().open ||
         document.querySelector('[aria-modal="true"]')

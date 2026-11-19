@@ -21,6 +21,7 @@ import {
   BufferImageSource,
 } from "pixi.js";
 import { useAppStore } from "../../store";
+import { useReferenceViewStore } from "../../store/referenceView";
 import type { Command, Tool } from "../../types";
 
 extend({ Container, Sprite, Graphics: PixiGraphics });
@@ -347,6 +348,17 @@ export const PixelCanvas: React.FC = () => {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    const updateViewportSize = () => {
+      const rect = container.getBoundingClientRect();
+      useReferenceViewStore.getState().setCanvasViewportSize({
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+    updateViewportSize();
+    const resizeObserver = new ResizeObserver(updateViewportSize);
+    resizeObserver.observe(container);
     const fit = () => {
       const containerRect = container.getBoundingClientRect();
       const padding = 60; // Leave some space around the canvas
@@ -369,7 +381,10 @@ export const PixelCanvas: React.FC = () => {
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      resizeObserver.disconnect();
+    };
   }, [dimensions.width, dimensions.height, setZoom, setPan]);
 
   const hexToRgb = (hex: string) => {
