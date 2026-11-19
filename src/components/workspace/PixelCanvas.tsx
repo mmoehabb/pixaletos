@@ -22,6 +22,14 @@ import {
 } from "pixi.js";
 import { useAppStore } from "../../store";
 import type { Command, Tool } from "../../types";
+import {
+  computeScaledBounds,
+  getScaleHandlePositions,
+  getSelectionBounds,
+  scaleSelectionRegion,
+  type ScaleHandle,
+  type SelectionBounds,
+} from "../../utils/transforms";
 
 extend({ Container, Sprite, Graphics: PixiGraphics });
 
@@ -87,12 +95,14 @@ const SelectionOverlay = ({
   zoom,
   currentTool,
   rotatePivot,
+  scaleBounds,
 }: {
   dimensions: { width: number; height: number };
   selection: Uint8Array | null;
   zoom: number;
   currentTool: Tool;
   rotatePivot: { x: number; y: number } | null;
+  scaleBounds: SelectionBounds | null;
 }) => {
   const draw = useCallback(
     (g: PixiGraphics) => {
@@ -216,8 +226,39 @@ const SelectionOverlay = ({
           g.lineTo(pivot.x, pivot.y + 3 / zoom);
         }
       }
+
+      if (currentTool === "scale") {
+        const bounds =
+          scaleBounds ||
+          getSelectionBounds(selection, dimensions.width, dimensions.height);
+        if (bounds) {
+          g.beginFill(0x000000, 0);
+          g.lineStyle(1 / zoom, 0x00ff00, 0.8);
+          g.drawRect(
+            bounds.minX,
+            bounds.minY,
+            bounds.maxX - bounds.minX + 1,
+            bounds.maxY - bounds.minY + 1,
+          );
+          g.endFill();
+
+          const handles = getScaleHandlePositions(bounds);
+          const halfSize = 2.5 / zoom;
+          for (const pos of Object.values(handles)) {
+            g.beginFill(0xffffff);
+            g.lineStyle(1 / zoom, 0x00ff00, 1);
+            g.drawRect(
+              pos.x - halfSize,
+              pos.y - halfSize,
+              halfSize * 2,
+              halfSize * 2,
+            );
+            g.endFill();
+          }
+        }
+      }
     },
-    [dimensions, selection, zoom, currentTool, rotatePivot],
+    [dimensions, selection, zoom, currentTool, rotatePivot, scaleBounds],
   );
 
   return <pixiGraphics draw={draw} zIndex={1000} />;
@@ -339,6 +380,11 @@ export const PixelCanvas: React.FC = () => {
     // Reset pivot when selection clears or tool changes
     if (!selection) {
       rotatePivot.current = null;
+    }
+    if (!selection || currentTool !== "scale") {
+      scaleHandle.current = null;
+      scaleSrcBounds.current = null;
+      scaleDstBounds.current = null;
     }
   }, [selection, currentTool]);
 
@@ -1103,6 +1149,10 @@ export const PixelCanvas: React.FC = () => {
   const rotateAngle = useRef<number>(0); // in radians
   const isDraggingRotateHandle = useRef<boolean>(false);
   const isDraggingPivot = useRef<boolean>(false);
+  // Scale Tool state
+  const scaleHandle = useRef<ScaleHandle | null>(null);
+  const scaleSrcBounds = useRef<SelectionBounds | null>(null);
+  const scaleDstBounds = useRef<SelectionBounds | null>(null);
   // Lasso Tool State
   const lassoPoints = useRef<{ x: number; y: number }[]>([]);
 
@@ -1204,11 +1254,48 @@ export const PixelCanvas: React.FC = () => {
     // cancelled interaction from leaking pixels into the following command.
     strokeDiff.current.clear();
 
-    if ((currentTool === "move" || currentTool === "rotate") && selection) {
+    if (
+      (currentTool === "move" ||
+        currentTool === "rotate" ||
+        currentTool === "scale") &&
+      selection
+    ) {
       setIsDrawing(true);
       startDrawPos.current = { x, y };
       lastDrawPos.current = { x, y };
       e.currentTarget.setPointerCapture(e.pointerId);
+
+      if (currentTool === "scale") {
+        scaleHandle.current = null;
+        scaleSrcBounds.current = null;
+        scaleDstBounds.current = null;
+        const bounds = getSelectionBounds(
+          selection,
+          dimensions.width,
+          dimensions.height,
+        );
+        if (bounds) {
+          const handles = getScaleHandlePositions(bounds);
+          const hitRadius = Math.max(1.5, 6 / zoom);
+          let bestHandle: ScaleHandle | null = null;
+          let bestDist = Infinity;
+          for (const [key, pos] of Object.entries(handles) as [
+            ScaleHandle,
+            { x: number; y: number },
+          ][]) {
+            const dist = Math.hypot(x + 0.5 - pos.x, y + 0.5 - pos.y);
+            if (dist <= hitRadius && dist < bestDist) {
+              bestDist = dist;
+              bestHandle = key;
+            }
+          }
+          if (bestHandle) {
+            scaleHandle.current = bestHandle;
+            scaleSrcBounds.current = bounds;
+            scaleDstBounds.current = { ...bounds };
+          }
+        }
+      }
 
       if (currentTool === "rotate") {
         // Calculate bounding box for rotation pivot if not set
@@ -1288,6 +1375,7 @@ export const PixelCanvas: React.FC = () => {
 
       if (
         currentTool === "move" ||
+        currentTool === "scale" ||
         isDraggingRotateHandle.current ||
         (currentTool === "rotate" && !isDraggingPivot.current)
       ) {
@@ -1488,11 +1576,43 @@ export const PixelCanvas: React.FC = () => {
     if (!layer || !layer.visible) return;
 
     if (
-      (currentTool === "move" || currentTool === "rotate") &&
+      (currentTool === "move" ||
+        currentTool === "rotate" ||
+        currentTool === "scale") &&
       selection &&
       originalLayerData.current &&
       startDrawPos.current
     ) {
+      if (
+        currentTool === "scale" &&
+        scaleHandle.current &&
+        scaleSrcBounds.current
+      ) {
+        lastDrawPos.current = { x, y };
+        const dstBounds = computeScaledBounds(
+          scaleHandle.current,
+          scaleSrcBounds.current,
+          x,
+          y,
+          e.shiftKey,
+        );
+        scaleDstBounds.current = dstBounds;
+        previewDataRef.current.fill(0);
+        if (movedSelectionData.current && originalLayerData.current) {
+          scaleSelectionRegion(
+            originalLayerData.current,
+            movedSelectionData.current,
+            dimensions.width,
+            dimensions.height,
+            scaleSrcBounds.current,
+            dstBounds,
+            previewDataRef.current,
+          );
+        }
+        setPreviewDataVersion((v) => v + 1);
+        return;
+      }
+
       if (currentTool === "rotate") {
         if (isDraggingPivot.current) {
           rotatePivot.current = { x, y };
@@ -1560,9 +1680,7 @@ export const PixelCanvas: React.FC = () => {
 
       if (
         currentTool === "move" ||
-        (currentTool === "rotate" &&
-          !isDraggingPivot.current &&
-          !isDraggingRotateHandle.current)
+        (currentTool === "scale" && !scaleHandle.current)
       ) {
         lastDrawPos.current = { x, y };
         const dx = x - startDrawPos.current.x;
@@ -1819,13 +1937,108 @@ export const PixelCanvas: React.FC = () => {
       if (!activeLayerId) return;
 
       if (
-        (currentTool === "move" || currentTool === "rotate") &&
+        (currentTool === "move" ||
+          currentTool === "rotate" ||
+          currentTool === "scale") &&
         selection &&
         startDrawPos.current &&
         lastDrawPos.current &&
         originalLayerData.current
       ) {
         const layer = layers.find((l) => l.id === activeLayerId);
+
+        if (currentTool === "scale" && scaleHandle.current) {
+          const srcBounds = scaleSrcBounds.current;
+          const dstBounds = scaleDstBounds.current;
+          scaleHandle.current = null;
+          scaleSrcBounds.current = null;
+          scaleDstBounds.current = null;
+
+          if (layer && srcBounds && dstBounds) {
+            const unchanged =
+              srcBounds.minX === dstBounds.minX &&
+              srcBounds.minY === dstBounds.minY &&
+              srcBounds.maxX === dstBounds.maxX &&
+              srcBounds.maxY === dstBounds.maxY;
+
+            if (unchanged) {
+              updateLayerData(
+                activeLayerId,
+                new Uint8ClampedArray(originalLayerData.current),
+              );
+              strokeDiff.current.clear();
+              originalLayerData.current = null;
+              movedSelectionData.current = null;
+              previewDataRef.current.fill(0);
+              setPreviewDataVersion((v) => v + 1);
+              return;
+            }
+
+            for (let i = 0; i < previewDataRef.current.length; i += 4) {
+              if (previewDataRef.current[i + 3] > 0) {
+                const pxIdx = i;
+                if (!strokeDiff.current.has(pxIdx)) {
+                  strokeDiff.current.set(pxIdx, {
+                    oldColor: {
+                      r: layer.data[pxIdx],
+                      g: layer.data[pxIdx + 1],
+                      b: layer.data[pxIdx + 2],
+                      a: layer.data[pxIdx + 3],
+                    },
+                    newColor: {
+                      r: previewDataRef.current[pxIdx],
+                      g: previewDataRef.current[pxIdx + 1],
+                      b: previewDataRef.current[pxIdx + 2],
+                      a: previewDataRef.current[pxIdx + 3],
+                    },
+                  });
+                } else {
+                  strokeDiff.current.get(pxIdx)!.newColor = {
+                    r: previewDataRef.current[pxIdx],
+                    g: previewDataRef.current[pxIdx + 1],
+                    b: previewDataRef.current[pxIdx + 2],
+                    a: previewDataRef.current[pxIdx + 3],
+                  };
+                }
+                layer.data[pxIdx] = previewDataRef.current[pxIdx];
+                layer.data[pxIdx + 1] = previewDataRef.current[pxIdx + 1];
+                layer.data[pxIdx + 2] = previewDataRef.current[pxIdx + 2];
+                layer.data[pxIdx + 3] = previewDataRef.current[pxIdx + 3];
+              }
+            }
+
+            if (movedSelectionData.current) {
+              const newSelection = new Uint8Array(
+                dimensions.width * dimensions.height,
+              );
+              const tempScaled = new Uint8ClampedArray(
+                dimensions.width * dimensions.height * 4,
+              );
+              scaleSelectionRegion(
+                originalLayerData.current,
+                movedSelectionData.current,
+                dimensions.width,
+                dimensions.height,
+                srcBounds,
+                dstBounds,
+                tempScaled,
+                newSelection,
+              );
+              setSelection(newSelection);
+            }
+
+            updateLayerData(activeLayerId, new Uint8ClampedArray(layer.data));
+            const diffEntries = Array.from(strokeDiff.current.entries());
+            commitDrawing(activeLayerId, diffEntries);
+            strokeDiff.current.clear();
+            originalLayerData.current = null;
+            movedSelectionData.current = null;
+
+            previewDataRef.current.fill(0);
+            setPreviewDataVersion((v) => v + 1);
+          }
+          return;
+        }
 
         if (currentTool === "rotate") {
           isDraggingPivot.current = false;
@@ -2224,6 +2437,7 @@ export const PixelCanvas: React.FC = () => {
                 selection={activeSelection || selection}
                 currentTool={currentTool}
                 rotatePivot={rotatePivot.current}
+                scaleBounds={scaleDstBounds.current}
               />
             </pixiContainer>
           </Application>

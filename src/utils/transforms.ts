@@ -132,3 +132,166 @@ export function rotateImage(
     }),
   };
 }
+
+export interface SelectionBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export type ScaleHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+
+/** Returns the tight pixel bounding box of a selection mask, or null if empty. */
+export function getSelectionBounds(
+  selection: Uint8Array,
+  width: number,
+  height: number,
+): SelectionBounds | null {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let py = 0; py < height; py++) {
+    const rowOffset = py * width;
+    for (let px = 0; px < width; px++) {
+      if (selection[rowOffset + px]) {
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      }
+    }
+  }
+
+  return minX <= maxX && minY <= maxY ? { minX, minY, maxX, maxY } : null;
+}
+
+/** Returns the 8 resize handle coordinates in canvas space for a bounding box. */
+export function getScaleHandlePositions(
+  bounds: SelectionBounds,
+): Record<ScaleHandle, { x: number; y: number }> {
+  const left = bounds.minX;
+  const right = bounds.maxX + 1;
+  const top = bounds.minY;
+  const bottom = bounds.maxY + 1;
+  const midX = (left + right) / 2;
+  const midY = (top + bottom) / 2;
+
+  return {
+    nw: { x: left, y: top },
+    n: { x: midX, y: top },
+    ne: { x: right, y: top },
+    e: { x: right, y: midY },
+    se: { x: right, y: bottom },
+    s: { x: midX, y: bottom },
+    sw: { x: left, y: bottom },
+    w: { x: left, y: midY },
+  };
+}
+
+/** Computes the target bounding box when dragging a scale handle to (x, y). */
+export function computeScaledBounds(
+  handle: ScaleHandle,
+  srcBounds: SelectionBounds,
+  x: number,
+  y: number,
+  keepAspect: boolean,
+): SelectionBounds {
+  let { minX, minY, maxX, maxY } = srcBounds;
+
+  if (handle === "nw" || handle === "w" || handle === "sw") {
+    minX = Math.min(x, srcBounds.maxX);
+  }
+  if (handle === "ne" || handle === "e" || handle === "se") {
+    maxX = Math.max(x, srcBounds.minX);
+  }
+  if (handle === "nw" || handle === "n" || handle === "ne") {
+    minY = Math.min(y, srcBounds.maxY);
+  }
+  if (handle === "sw" || handle === "s" || handle === "se") {
+    maxY = Math.max(y, srcBounds.minY);
+  }
+
+  const isCorner =
+    handle === "nw" || handle === "ne" || handle === "se" || handle === "sw";
+  if (keepAspect && isCorner) {
+    const srcW = srcBounds.maxX - srcBounds.minX + 1;
+    const srcH = srcBounds.maxY - srcBounds.minY + 1;
+    const rawW = maxX - minX + 1;
+    const rawH = maxY - minY + 1;
+
+    let dstW: number;
+    let dstH: number;
+    if (rawW / srcW >= rawH / srcH) {
+      dstW = rawW;
+      dstH = Math.max(1, Math.round((rawW * srcH) / srcW));
+    } else {
+      dstH = rawH;
+      dstW = Math.max(1, Math.round((rawH * srcW) / srcH));
+    }
+
+    if (handle === "se") {
+      maxX = minX + dstW - 1;
+      maxY = minY + dstH - 1;
+    } else if (handle === "nw") {
+      minX = maxX - dstW + 1;
+      minY = maxY - dstH + 1;
+    } else if (handle === "ne") {
+      maxX = minX + dstW - 1;
+      minY = maxY - dstH + 1;
+    } else {
+      minX = maxX - dstW + 1;
+      maxY = minY + dstH - 1;
+    }
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Nearest-neighbor scales the selected pixels from `srcBounds` into `dstBounds`,
+ * writing RGBA pixels into `targetData` and optionally updating `targetSelection`.
+ */
+export function scaleSelectionRegion(
+  sourceData: Uint8ClampedArray,
+  sourceSelection: Uint8Array,
+  width: number,
+  height: number,
+  srcBounds: SelectionBounds,
+  dstBounds: SelectionBounds,
+  targetData: Uint8ClampedArray,
+  targetSelection?: Uint8Array,
+): void {
+  const srcW = srcBounds.maxX - srcBounds.minX + 1;
+  const srcH = srcBounds.maxY - srcBounds.minY + 1;
+  const dstW = dstBounds.maxX - dstBounds.minX + 1;
+  const dstH = dstBounds.maxY - dstBounds.minY + 1;
+
+  const startY = Math.max(0, dstBounds.minY);
+  const endY = Math.min(height - 1, dstBounds.maxY);
+  const startX = Math.max(0, dstBounds.minX);
+  const endX = Math.min(width - 1, dstBounds.maxX);
+
+  for (let py = startY; py <= endY; py++) {
+    const v = (py - dstBounds.minY + 0.5) / dstH;
+    const srcY =
+      srcBounds.minY + Math.min(srcH - 1, Math.max(0, Math.floor(v * srcH)));
+
+    for (let px = startX; px <= endX; px++) {
+      const u = (px - dstBounds.minX + 0.5) / dstW;
+      const srcX =
+        srcBounds.minX + Math.min(srcW - 1, Math.max(0, Math.floor(u * srcW)));
+
+      const srcMaskIdx = srcY * width + srcX;
+      if (!sourceSelection[srcMaskIdx]) continue;
+
+      const dstMaskIdx = py * width + px;
+      if (targetSelection) {
+        targetSelection[dstMaskIdx] = 1;
+      }
+      copyPixel(sourceData, srcMaskIdx * 4, targetData, dstMaskIdx * 4);
+    }
+  }
+}

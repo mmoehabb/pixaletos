@@ -38,6 +38,7 @@ export type Tool =
   | "select_lasso"
   | "move"
   | "rotate"
+  | "scale"
   | "pan"
   | "zoom";
 

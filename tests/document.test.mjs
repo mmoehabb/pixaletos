@@ -8,7 +8,12 @@ const vite = await createServer({
 });
 after(() => vite.close());
 const { useAppStore } = await vite.ssrLoadModule("/src/store/index.ts");
-const { flipImage } = await vite.ssrLoadModule("/src/utils/transforms.ts");
+const {
+  flipImage,
+  getSelectionBounds,
+  computeScaledBounds,
+  scaleSelectionRegion,
+} = await vite.ssrLoadModule("/src/utils/transforms.ts");
 
 test("new projects have a frame with a stable active layer", () => {
   useAppStore.getState().createNewProject(4, 4);
@@ -178,4 +183,77 @@ test("cut history remains immutable across strokes and repeated undo and redo", 
   useAppStore.getState().redo();
   useAppStore.getState().undo();
   assert.equal(useAppStore.getState().layers[0].data[11], 0);
+});
+
+test("scaleSelectionRegion scales selected pixels and mask up and down", () => {
+  const width = 4;
+  const height = 4;
+  const srcData = new Uint8ClampedArray(width * height * 4);
+  // Put red at (0,0) and blue at (1,1)
+  srcData[0] = 255;
+  srcData[3] = 255;
+  const p11 = (1 * width + 1) * 4;
+  srcData[p11 + 2] = 255;
+  srcData[p11 + 3] = 255;
+
+  // L-shaped 2x2 selection: (0,0), (0,1), (1,1) — (1,0) is unselected
+  const srcMask = new Uint8Array(width * height);
+  srcMask[0] = 1;
+  srcMask[width] = 1;
+  srcMask[width + 1] = 1;
+
+  const srcBounds = getSelectionBounds(srcMask, width, height);
+  assert.deepEqual(srcBounds, { minX: 0, minY: 0, maxX: 1, maxY: 1 });
+
+  // Scale 2x2 -> 4x4 (2x scale up)
+  const upData = new Uint8ClampedArray(width * height * 4);
+  const upMask = new Uint8Array(width * height);
+  scaleSelectionRegion(
+    srcData,
+    srcMask,
+    width,
+    height,
+    srcBounds,
+    { minX: 0, minY: 0, maxX: 3, maxY: 3 },
+    upData,
+    upMask,
+  );
+  // Top-left 2x2 should be red and selected
+  assert.equal(upData[0], 255);
+  assert.equal(upData[(1 * width + 1) * 4], 255);
+  assert.equal(upMask[0], 1);
+  // Top-right 2x2 was unselected in source, so should remain unselected & transparent
+  assert.equal(upMask[2], 0);
+  assert.equal(upData[2 * 4 + 3], 0);
+  // Bottom-right 2x2 should be blue and selected
+  assert.equal(upData[(3 * width + 3) * 4 + 2], 255);
+  assert.equal(upMask[3 * width + 3], 1);
+
+  // Scale 4x4 -> 2x2 (0.5x scale down)
+  const downData = new Uint8ClampedArray(width * height * 4);
+  const downMask = new Uint8Array(width * height);
+  scaleSelectionRegion(
+    upData,
+    upMask,
+    width,
+    height,
+    { minX: 0, minY: 0, maxX: 3, maxY: 3 },
+    { minX: 1, minY: 1, maxX: 2, maxY: 2 },
+    downData,
+    downMask,
+  );
+  assert.equal(downMask[1 * width + 1], 1);
+  assert.equal(downData[(1 * width + 1) * 4], 255);
+  assert.equal(downMask[1 * width + 2], 0);
+  assert.equal(downMask[2 * width + 2], 1);
+  assert.equal(downData[(2 * width + 2) * 4 + 2], 255);
+});
+
+test("computeScaledBounds clamps to 1x1 minimum and preserves aspect ratio with Shift", () => {
+  const src = { minX: 2, minY: 2, maxX: 5, maxY: 3 }; // 4x2
+  const clamped = computeScaledBounds("se", src, 0, 0, false);
+  assert.deepEqual(clamped, { minX: 2, minY: 2, maxX: 2, maxY: 2 });
+
+  const aspect = computeScaledBounds("se", src, 9, 3, true); // width -> 8 (2x), height -> 4 (2x)
+  assert.deepEqual(aspect, { minX: 2, minY: 2, maxX: 9, maxY: 5 });
 });

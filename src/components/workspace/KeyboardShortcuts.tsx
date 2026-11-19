@@ -120,6 +120,7 @@ export const KeyboardShortcuts: React.FC = () => {
           m: "select",
           v: "move",
           r: "rotate",
+          s: "scale",
           l: "line",
           u: "rectangle",
           o: "ellipse",
