@@ -7,10 +7,12 @@ import { RightPanel } from "./components/workspace/RightPanel";
 import { KeyboardShortcuts } from "./components/workspace/KeyboardShortcuts";
 import { MenuBar } from "./components/workspace/MenuBar";
 import { TimelineDock } from "./components/workspace/TimelineDock";
+import { ReferenceView } from "./components/workspace/ReferenceView";
 import { hasUnsavedChanges, markProjectSaved } from "./utils/project";
 import { Recovery } from "./components/workspace/Recovery";
 import { AskAIDialog } from "./components/workspace/AskAIDialog";
 import { useAppStore } from "./store";
+import { useReferenceViewStore } from "./store/referenceView";
 import packageJson from "../package.json";
 
 function App() {
@@ -26,6 +28,9 @@ function App() {
     isTimelineVisible,
     setIsTimelineVisible,
   } = useAppStore();
+
+  const isReferenceOpen = useReferenceViewStore((s) => s.isOpen);
+  const toggleReferenceOpen = useReferenceViewStore((s) => s.toggleOpen);
 
   useEffect(() => {
     if (layers.length === 0) {
@@ -94,6 +99,7 @@ function App() {
 
         <div className="flex-1 flex flex-col relative overflow-hidden bg-neutral-950">
           {layers.length > 0 && <PixelCanvas />}
+          <ReferenceView />
           {isTimelineVisible && <TimelineDock />}
         </div>
 
@@ -146,6 +152,16 @@ function App() {
             }`}
           >
             Timeline
+          </button>
+          <button
+            onClick={toggleReferenceOpen}
+            className={`px-2 py-0.5 rounded transition-colors ${
+              isReferenceOpen
+                ? "bg-indigo-500/20 text-indigo-300"
+                : "hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            Reference
           </button>
           <div className="w-px h-4 bg-white/10" />
           <span>

@@ -3,6 +3,7 @@ import { useInputSettings } from "../../input/settings";
 import { copySelection, pasteSelection } from "../../utils/clipboard";
 import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "../../store";
+import { useReferenceViewStore } from "../../store/referenceView";
 import {
   exportToPNG,
   importPNG,
@@ -121,6 +122,8 @@ export function MenuBar() {
   const [exportScale, setExportScale] = useState(1);
   const [exportError, setExportError] = useState("");
   const store = useAppStore();
+  const isReferenceOpen = useReferenceViewStore((s) => s.isOpen);
+  const toggleReferenceOpen = useReferenceViewStore((s) => s.toggleOpen);
 
   useEffect(() => {
     const openExport = () => setExportOpen(true);
@@ -386,6 +389,10 @@ export function MenuBar() {
     {
       label: store.showGrid ? "Hide Grid" : "Show Grid",
       onClick: () => store.setShowGrid(!store.showGrid),
+    },
+    {
+      label: isReferenceOpen ? "Hide Reference View" : "Show Reference View",
+      onClick: toggleReferenceOpen,
     },
     {
       label: isFullscreen ? "Exit Full Screen" : "Full Screen",
