@@ -11,6 +11,7 @@ import {
   LassoSelect,
   Move,
   RotateCw,
+  Scaling,
   ZoomIn,
   Hand,
   Square,
@@ -236,6 +237,7 @@ export const Toolbar: React.FC = () => {
         {renderSelectTool()}
         {renderTool("move", <Move size={20} />, "Move (V)")}
         {renderTool("rotate", <RotateCw size={20} />, "Rotate (R)")}
+        {renderTool("scale", <Scaling size={20} />, "Scale (S)")}
       </div>
 
       <div className="flex flex-row md:flex-col items-center gap-2 md:gap-2 mx-2 md:mx-0 md:mb-4 flex-shrink-0">
