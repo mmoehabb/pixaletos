@@ -297,6 +297,18 @@ export const PixelCanvas: React.FC = () => {
     activeKeyframeId,
   } = useAppStore();
 
+  // Onion skin: resolve the previous keyframe once and index its layers by id
+  // so each trail can be stacked directly behind its matching current layer.
+  const activeKeyframeIndex = keyframes.findIndex(
+    (frame) => frame.id === activeKeyframeId,
+  );
+  const prevKeyframe =
+    activeKeyframeIndex > 0 ? keyframes[activeKeyframeIndex - 1] : undefined;
+  const prevLayersById = new Map(
+    (prevKeyframe?.layers || []).map((layer) => [layer.id, layer]),
+  );
+  const showOnionSkin = isOnionSkin && !isPlaying && !!prevKeyframe;
+
   const pressureConfig = usePressureSettings((state) => state.settings);
   const pressure = useRef(1);
   const owner = useRef<number | null>(null);
@@ -2460,46 +2472,37 @@ export const PixelCanvas: React.FC = () => {
             resolution={1}
           >
             <pixiContainer>
-              {isOnionSkin &&
-                !isPlaying &&
-                keyframes[
-                  Math.max(
-                    0,
-                    keyframes.findIndex(
-                      (frame) => frame.id === activeKeyframeId,
-                    ) - 1,
-                  )
-                ]?.id !== activeKeyframeId &&
-                [
-                  ...(keyframes[
-                    Math.max(
-                      0,
-                      keyframes.findIndex(
-                        (frame) => frame.id === activeKeyframeId,
-                      ) - 1,
-                    )
-                  ]?.layers || []),
-                ]
-                  .reverse()
-                  .map((layer, index) => (
+              {/* Onion skin: draw the previous keyframe as a dimmed trail.
+                  Each previous-frame layer is matched by id and painted
+                  directly behind its corresponding current layer, so a layer
+                  below the sprite (e.g. a background) no longer covers the
+                  trail of the layers above it.
+
+                  Pixi sorts children by zIndex (setting any zIndex opts the
+                  container into sorting), so the onion layer sits just below
+                  its matching layer (index vs index + 0.5). All stay below
+                  the preview layer (zIndex = layers.length). */}
+              {[...layers].reverse().map((layer, index) => (
+                <React.Fragment key={layer.id}>
+                  {showOnionSkin && prevLayersById.has(layer.id) && (
                     <CanvasLayer
                       key={`onion-${layer.id}`}
-                      data={layer.data}
-                      opacity={layer.opacity * 0.3}
-                      visible={layer.visible}
+                      data={prevLayersById.get(layer.id)!.data}
+                      opacity={prevLayersById.get(layer.id)!.opacity * 0.3}
+                      visible={prevLayersById.get(layer.id)!.visible}
                       dimensions={dimensions}
-                      zIndex={index - 1000}
+                      zIndex={index}
                     />
-                  ))}
-              {[...layers].reverse().map((layer, index) => (
-                <CanvasLayer
-                  key={layer.id}
-                  data={layer.data}
-                  opacity={layer.opacity}
-                  visible={layer.visible}
-                  dimensions={dimensions}
-                  zIndex={index}
-                />
+                  )}
+                  <CanvasLayer
+                    key={layer.id}
+                    data={layer.data}
+                    opacity={layer.opacity}
+                    visible={layer.visible}
+                    dimensions={dimensions}
+                    zIndex={index + 0.5}
+                  />
+                </React.Fragment>
               ))}
 
               {/* Preview layer for drawing shapes / moving */}
